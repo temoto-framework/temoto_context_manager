@@ -2,6 +2,7 @@
 #define TEMOTO_CONTEXT_MANAGER__CONTEXT_MANAGER_CONTAINERS_H
 
 #include "temoto_context_manager/ObjectContainer.h"
+#include "temoto_context_manager/MapContainer.h"
 #include "temoto_core/common/topic_container.h"
 
 namespace temoto_context_manager
