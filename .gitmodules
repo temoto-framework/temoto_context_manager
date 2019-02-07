@@ -1,0 +1,3 @@
+[submodule "temoto_context_manager/cereal"]
+	path = temoto_context_manager/cereal
+	url = https://github.com/USCiLab/cereal
