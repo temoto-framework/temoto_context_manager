@@ -10,86 +10,52 @@
 #include "cereal/types/vector.hpp"
 #include <ros/serialization.h>
 #include "temoto_context_manager/context_manager_containers.h"
+#include "temoto_context_manager/env_model_repository.h"
 
 namespace ser = ros::serialization;
 
-class PayloadEntry
+namespace temoto_context_manager 
 {
-private:
-  std::string type;
-
-public:
-  PayloadEntry(std::string type) : type(type)
-  {
-  }
-
-  ~PayloadEntry()
-  {
-  }
-
-  PayloadEntry() : type("-1")
-  {
-  }
-  std::string getType()
-  {
-    return type;
-  }
-  template <class Archive>
-  void serialize(Archive& archive)
-  {
-    archive(type);
-  }
-};
-
-class Node : public std::enable_shared_from_this<Node>
+namespace emr 
 {
-private:
-  std::weak_ptr<Node> parent;
-  std::vector<std::shared_ptr<Node> > children;
-  PayloadEntry payload;
 
-public:
-  template <class Archive>
-  void serialize(Archive& archive)
-  {
-    archive(parent, children, payload);
-  }
-  void addChild(std::shared_ptr<Node> child)
-  {
-    children.push_back(child);
-    child->setParent(shared_from_this());
-  }
-  void setParent(std::shared_ptr<Node> parent)
-  {
-    parent = parent;
-  }
-  std::weak_ptr<Node> getParent()
-  {
-    return parent;
-  }
-  std::vector<std::shared_ptr<Node> > getChildren()
-  {
-    return children;
-  }
-  PayloadEntry getPayload()
-  {
-    return payload;
-  }
 
-  Node() : payload(PayloadEntry("0"))
-  {
-  }
-  Node(PayloadEntry map_container) : payload(map_container)
-  {
-  }
-  ~Node()
-  {
-  }
-};
+PayloadEntry::PayloadEntry(std::string type) : type(type) {}
+
+PayloadEntry::~PayloadEntry() {}
+
+PayloadEntry::PayloadEntry() : type("-1") {}
+
 
 /**
- * Function to recursively visit every node in a Tree starting from the root
- *
+ * @brief Add child node to existing node
+ * 
+ * @param child - pointer to the node to be added
+ */
+void Node::addChild(std::shared_ptr<Node> child)
+{
+  children.push_back(child);
+  child->setParent(shared_from_this());
+}
+/**
+ * @brief Set parent of node
+ * 
+ * @param parent 
+ */
+void Node::setParent(std::shared_ptr<Node> parent)
+{
+  parent = parent;
+}
+
+// Default constructor creates node with no connections and type "0"
+Node::Node() : payload(PayloadEntry("0")) {}
+Node::Node(PayloadEntry map_container) : payload(map_container) {}
+
+
+/**
+ * @brief Function to traverse and print out every node type in the tree
+ * 
+ * @param root 
  */
 void traverseTree(Node root)
 {
@@ -100,6 +66,13 @@ void traverseTree(Node root)
     traverseTree(*children[i]);
   }
 }
+
+/**
+ * @brief Helper function to recursively find root node of tree
+ * 
+ * @param pNode pointer to any node in the tree
+ * @return std::weak_ptr<Node> 
+ */
 std::weak_ptr<Node> findRoot(std::shared_ptr<Node> pNode)
 {
   std::cout << pNode->getPayload().getType();
@@ -110,153 +83,86 @@ std::weak_ptr<Node> findRoot(std::shared_ptr<Node> pNode)
   return findRoot(pNode->getParent().lock());
 }
 
-class Tree
-{
-private:
-public:
-  std::map<std::string, std::shared_ptr<Node> > nodes;
+/**
+ * @brief Serialize the Object
+ * 
+ * @tparam Archive 
+ * @param archive - output archive
+ */
+template<class Archive>
+void ObjectEntry::save(Archive& archive) const {
+  // Serialize the object_container
+  uint32_t payload_size = ros::serialization::serializationLength(object_container);
+  boost::shared_array<uint8_t> buffer(new uint8_t[payload_size]);
+  ser::OStream stream(buffer.get(), payload_size);
+  ser::serialize(stream, object_container);
 
-  template <class Archive>
-  void serialize(Archive & archive)
+  // Fill out the byte array
+  for (uint32_t i=0; i<payload_size; i++)
   {
-    archive(nodes);
+    payload_byte_array.push_back(buffer.get()[i]);
   }
+  archive(payload_byte_array);
+}
 
-  Tree()
+/**
+ * @brief Deserialize the object
+ * 
+ * 
+ * @tparam Archive 
+ * @param archive 
+ */
+template<class Archive>
+void ObjectEntry::load(Archive& archive) {
+  archive(payload_byte_array);
+  uint32_t payload_size = payload_byte_array.size();
+  boost::shared_array<uint8_t> buffer(new uint8_t[payload_size]);
+
+  // Fill buffer with the serialized payload
+  for (uint32_t i=0; i<payload_size; i++)
   {
+    (buffer.get())[i] = payload_byte_array[i];
   }
-  ~Tree()
+
+  // Convert the serialized payload to msg
+  ser::IStream stream(buffer.get(), payload_size);
+  ser::deserialize(stream, object_container);
+}
+
+
+template<class Archive>
+void MapEntry::save(Archive& archive) const{
+  // Serialize the map_container
+  uint32_t payload_size = ros::serialization::serializationLength(map_container);
+  boost::shared_array<uint8_t> buffer(new uint8_t[payload_size]);
+  ser::OStream stream(buffer.get(), payload_size);
+  ser::serialize(stream, map_container);
+
+  // Fill out the byte array
+  for (uint32_t i=0; i<payload_size; i++)
   {
+    payload_byte_array.push_back(buffer.get()[i]);
   }
-};
+  archive(payload_byte_array);
+}
+template<class Archive>
+void MapEntry::load(Archive& archive) {
+  archive(payload_byte_array);
+  uint32_t payload_size = payload_byte_array.size();
+  boost::shared_array<uint8_t> buffer(new uint8_t[payload_size]);
 
-// int main()
-// {
-//   std::stringstream ss;
-//   {
-//     cereal::JSONOutputArchive oarchive(ss);
-
-//     std::shared_ptr<Node> root = std::make_shared<Node>(Node());
-//     std::map<std::string, std::shared_ptr<Node>> nodes;
-//     Tree tree = Tree();
-//     tree.nodes["0"] = root;
-//     tree.nodes["1"] = std::make_shared<Node>(Node(PayloadEntry("1")));
-//     tree.nodes["2"] = std::make_shared<Node>(Node(PayloadEntry("2")));
-//     tree.nodes["3"] = std::make_shared<Node>(Node(PayloadEntry("3")));
-//     root->addChild(tree.nodes["1"]);
-//     tree.nodes["1"]->addChild(tree.nodes["2"]);
-//     tree.nodes["2"]->addChild(tree.nodes["3"]);
-
-//     // traverseTree(*root);
-//     // std::cout << findRoot(nodes["3"]).lock()->getPayload().getType();
-//     oarchive(tree);
-//   }
-//   // std::cout << ss.str();
-//   {
-//     Tree newTree = Tree();
-
-//     cereal::JSONInputArchive iarchive(ss);
-//     iarchive(newTree);
-//     traverseTree(*newTree.nodes["0"]);
-//     std::cout << findRoot(newTree.nodes["3"]).lock()->getPayload().getType();
-//   }
-//   // std::cout << "\n" << nodes["3"]->getParent().lock()->getPayload().getType();
-// }
-
-class ObjectEntry : public PayloadEntry
-{
-private:
-  temoto_context_manager::ObjectContainer object_container;
-  mutable std::vector<uint8_t> payload_byte_array;
-public:
-
-  template <class Archive>
-  void save(Archive& archive) const {
-    // Serialize the object_container
-    uint32_t payload_size = ros::serialization::serializationLength(object_container);
-    boost::shared_array<uint8_t> buffer(new uint8_t[payload_size]);
-    ser::OStream stream(buffer.get(), payload_size);
-    ser::serialize(stream, object_container);
-
-    // Fill out the byte array
-    for (uint32_t i=0; i<payload_size; i++)
-    {
-      payload_byte_array.push_back(buffer.get()[i]);
-    }
-    archive(payload_byte_array);
-  }
-  
-  template <class Archive>
-  void load(Archive& archive) {
-    archive(payload_byte_array);
-    uint32_t payload_size = payload_byte_array.size();
-    boost::shared_array<uint8_t> buffer(new uint8_t[payload_size]);
-
-    // Fill buffer with the serialized payload
-    for (uint32_t i=0; i<payload_size; i++)
-    {
-      (buffer.get())[i] = payload_byte_array[i];
-    }
-
-    // Convert the serialized payload to msg
-    ser::IStream stream(buffer.get(), payload_size);
-    ser::deserialize(stream, object_container);
-  }
-  ObjectEntry()
+  // Fill buffer with the serialized payload
+  for (uint32_t i=0; i<payload_size; i++)
   {
-  }
-  ~ObjectEntry()
-  {
-  }
-};
-
-// TODO: 
-// Uncomment once the MapContainer actually exists
-class MapEntry : public PayloadEntry
-{
-private:
-  temoto_context_manager::MapContainer map_container;
-  mutable std::vector<uint8_t> payload_byte_array;
-public:
-  template <class Archive>
-  void save(Archive& archive) const{
-    // Serialize the map_container
-    uint32_t payload_size = ros::serialization::serializationLength(map_container);
-    boost::shared_array<uint8_t> buffer(new uint8_t[payload_size]);
-    ser::OStream stream(buffer.get(), payload_size);
-    ser::serialize(stream, map_container);
-
-    // Fill out the byte array
-    for (uint32_t i=0; i<payload_size; i++)
-    {
-      payload_byte_array.push_back(buffer.get()[i]);
-    }
-    archive(payload_byte_array);
+    (buffer.get())[i] = payload_byte_array[i];
   }
 
-  template <class Archive>
-  void load(Archive& archive) {
-    archive(payload_byte_array);
-    uint32_t payload_size = payload_byte_array.size();
-    boost::shared_array<uint8_t> buffer(new uint8_t[payload_size]);
-
-    // Fill buffer with the serialized payload
-    for (uint32_t i=0; i<payload_size; i++)
-    {
-      (buffer.get())[i] = payload_byte_array[i];
-    }
-
-    // Convert the serialized payload to msg
-    ser::IStream stream(buffer.get(), payload_size);
-    ser::deserialize(stream, map_container);
-  }
-
-  MapEntry()
-  {
-  }
-  ~MapEntry()
-  {
-  }
-};
+  // Convert the serialized payload to msg
+  ser::IStream stream(buffer.get(), payload_size);
+  ser::deserialize(stream, map_container);
+}
 
 
+
+} // namespace emr
+} // namespace temoto_context_manager
