@@ -1,10 +1,15 @@
 #ifndef ENV_MODEL_REPOSITORY_H
 #define ENV_MODEL_REPOSITORY_H
 
+namespace ser = ros::serialization;
+
 namespace temoto_context_manager 
 {
 namespace emr 
 {
+
+class ObjectEntry;
+class MapEntry;
 
 class PayloadEntry
 {
@@ -25,6 +30,57 @@ public:
   void serialize(Archive& archive)
   {
     archive(type);
+  }
+};
+
+template <class ROSMsg>
+class ROSPayLoad : public PayloadEntry
+{
+private:
+  ROSMsg payload;
+  mutable std::vector<uint8_t> payload_byte_array;
+public:
+
+  template<class Archive>
+  void save(Archive& archive) const{
+    // Serialize the payload
+    uint32_t payload_size = ros::serialization::serializationLength(payload);
+    boost::shared_array<uint8_t> buffer(new uint8_t[payload_size]);
+    ser::OStream stream(buffer.get(), payload_size);
+    ser::serialize(stream, payload);
+
+    // Fill out the byte array
+    for (uint32_t i=0; i<payload_size; i++)
+    {
+      payload_byte_array.push_back(buffer.get()[i]);
+    }
+    archive(payload_byte_array, type);
+  }
+  template<class Archive>
+  void load(Archive& archive) {
+    archive(payload_byte_array, type);
+    uint32_t payload_size = payload_byte_array.size();
+    boost::shared_array<uint8_t> buffer(new uint8_t[payload_size]);
+
+    // Fill buffer with the serialized payload
+    for (uint32_t i=0; i<payload_size; i++)
+    {
+      (buffer.get())[i] = payload_byte_array[i];
+    }
+
+    // Convert the serialized payload to msg
+    ser::IStream stream(buffer.get(), payload_size);
+    ser::deserialize(stream, payload);
+  }
+  ROSPayLoad()
+  {
+  }
+  ROSPayLoad(ROSMsg payload) : payload(payload)
+  {
+  }
+
+  ~ROSPayLoad()
+  {
   }
 };
 
@@ -57,7 +113,7 @@ public:
   }
 
   Node();
-  Node(PayloadEntry map_container);
+  Node(PayloadEntry payload);
   ~Node() {}
 };
 
@@ -80,36 +136,21 @@ public:
   ~Tree() {}
 };
 
-class ObjectEntry : public PayloadEntry
+class ObjectEntry : private ROSPayLoad<ObjectContainer>
 {
-private:
-  ObjectContainer object_container;
-  mutable std::vector<uint8_t> payload_byte_array;
 public:
 
-  template <class Archive>
-  void save(Archive& archive) const;
-  
-  template <class Archive>
-  void load(Archive& archive);
-
   ObjectEntry() {}
+  ObjectEntry(ObjectContainer obj_container) : ROSPayLoad<ObjectContainer>(obj_container) {}
   ~ObjectEntry() {}
 };
 
-class MapEntry : public PayloadEntry
+class MapEntry : private ROSPayLoad<MapContainer>
 {
-private:
-  MapContainer map_container;
-  mutable std::vector<uint8_t> payload_byte_array;
 public:
-  template <class Archive>
-  void save(Archive& archive) const;
-
-  template <class Archive>
-  void load(Archive& archive);
 
   MapEntry() {}
+  MapEntry(MapContainer map_container) : ROSPayLoad<MapContainer>(map_container) {}
   ~MapEntry() {}
 };
 

@@ -12,8 +12,6 @@
 #include "temoto_context_manager/context_manager_containers.h"
 #include "temoto_context_manager/env_model_repository.h"
 
-namespace ser = ros::serialization;
-
 namespace temoto_context_manager 
 {
 namespace emr 
@@ -81,85 +79,6 @@ std::weak_ptr<Node> findRoot(std::shared_ptr<Node> pNode)
     return pNode;
   }
   return findRoot(pNode->getParent().lock());
-}
-
-/**
- * @brief Serialize the Object
- * 
- * @tparam Archive 
- * @param archive - output archive
- */
-template<class Archive>
-void ObjectEntry::save(Archive& archive) const {
-  // Serialize the object_container
-  uint32_t payload_size = ros::serialization::serializationLength(object_container);
-  boost::shared_array<uint8_t> buffer(new uint8_t[payload_size]);
-  ser::OStream stream(buffer.get(), payload_size);
-  ser::serialize(stream, object_container);
-
-  // Fill out the byte array
-  for (uint32_t i=0; i<payload_size; i++)
-  {
-    payload_byte_array.push_back(buffer.get()[i]);
-  }
-  archive(payload_byte_array);
-}
-
-/**
- * @brief Deserialize the object
- * 
- * 
- * @tparam Archive 
- * @param archive 
- */
-template<class Archive>
-void ObjectEntry::load(Archive& archive) {
-  archive(payload_byte_array);
-  uint32_t payload_size = payload_byte_array.size();
-  boost::shared_array<uint8_t> buffer(new uint8_t[payload_size]);
-
-  // Fill buffer with the serialized payload
-  for (uint32_t i=0; i<payload_size; i++)
-  {
-    (buffer.get())[i] = payload_byte_array[i];
-  }
-
-  // Convert the serialized payload to msg
-  ser::IStream stream(buffer.get(), payload_size);
-  ser::deserialize(stream, object_container);
-}
-
-
-template<class Archive>
-void MapEntry::save(Archive& archive) const{
-  // Serialize the map_container
-  uint32_t payload_size = ros::serialization::serializationLength(map_container);
-  boost::shared_array<uint8_t> buffer(new uint8_t[payload_size]);
-  ser::OStream stream(buffer.get(), payload_size);
-  ser::serialize(stream, map_container);
-
-  // Fill out the byte array
-  for (uint32_t i=0; i<payload_size; i++)
-  {
-    payload_byte_array.push_back(buffer.get()[i]);
-  }
-  archive(payload_byte_array);
-}
-template<class Archive>
-void MapEntry::load(Archive& archive) {
-  archive(payload_byte_array);
-  uint32_t payload_size = payload_byte_array.size();
-  boost::shared_array<uint8_t> buffer(new uint8_t[payload_size]);
-
-  // Fill buffer with the serialized payload
-  for (uint32_t i=0; i<payload_size; i++)
-  {
-    (buffer.get())[i] = payload_byte_array[i];
-  }
-
-  // Convert the serialized payload to msg
-  ser::IStream stream(buffer.get(), payload_size);
-  ser::deserialize(stream, map_container);
 }
 
 
