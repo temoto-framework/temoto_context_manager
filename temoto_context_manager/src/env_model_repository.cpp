@@ -42,7 +42,15 @@ void Node::addChild(std::shared_ptr<Node> child)
  */
 void Node::setParent(std::shared_ptr<Node> parent)
 {
-  parent = parent;
+  TEMOTO_DEBUG("Attempting to add " << parent->name << " as parent to " << name);
+  // Check if the node already has a parent
+  if (parent.expired()) {
+    parent = parent;
+  }
+  else
+  {
+    TEMOTO_ERROR("Node already has a parent.")
+  } 
 }
 
 // Default constructor creates node with no connections and type "0"

@@ -4,6 +4,7 @@
 #include <utility>
 #include <yaml-cpp/yaml.h>
 #include <fstream>
+#include "temoto_core/ros_serialization.h"
 
 namespace temoto_context_manager
 {
@@ -44,8 +45,8 @@ ContextManager::ContextManager()
   resource_manager_1_.registerStatusCb(&ContextManager::statusCb1);
   resource_manager_2_.registerStatusCb(&ContextManager::statusCb2);
 
-  // "Add object" server
-  add_objects_server_ = nh_.advertiseService(srv_name::SERVER_ADD_OBJECTS, &ContextManager::addObjectsCb, this);
+  // "Update EMR" server
+  update_emr_server_ = nh_.advertiseService(srv_name::SERVER_UPDATE_EMR, &ContextManager::updateEMRCb, this);
   
   // Request remote objects
   object_syncer_.requestRemoteConfigs();
@@ -139,60 +140,113 @@ void ContextManager::trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, co
 /*
  * Object update callback
  */
-void ContextManager::addOrUpdateObjects(const Objects& objects_to_add, bool from_other_manager)
+
+void ContextManager::updateEMR(const Nodes& nodes_to_add, bool from_other_manager)
 {
-  // Loop over the list of provided objects
-  for (auto object : objects_to_add)
+
+  for (auto node : nodes_to_add)
   {
-    // Replace all spaces in the name with the underscore character
-    std::replace(object.name.begin(), object.name.end(), ' ', '_');
-
-    // Check if the object has to be added or updated
-    auto it = std::find_if(objects_.begin(), objects_.end(),
-        [&](const ObjectPtr& o_ptr) { return *o_ptr == object; });
-
-    // Update the object
-    if (it != objects_.end())
+    PayloadEntry pl;
+    if (node.type == "OBJECT") 
     {
-      TEMOTO_INFO("Updating object: '%s'.", object.name.c_str());
-      *it = std::make_shared<temoto_context_manager::ObjectContainer>(object);
+      pl = (PayloadEntry) temoto_core::deserializeROSmsg<ObjectContainer>(node);
     }
-
-    // Add new object
+    else if (node.type == "MAP") 
+    {
+      pl = (PayloadEntry) temoto_core::deserializeROSmsg<MapContainer>(node);
+    }
     else
     {
-      TEMOTO_INFO("Adding new object: '%s'.", object.name.c_str());
-      objects_.push_back(std::make_shared<temoto_context_manager::ObjectContainer>(object));
+      TEMOTO_ERROR("Wrong type " << node.type << "specified for EMR node")
     }
+    
+    
+    NodeContainer node_container = temoto_core::deserializeROSmsg<NodeContainer>(nodes_to_add);
+
+    std::replace(pl.name.begin(), pl.name.end(), ' ', '_');
+    // Check if the object has to be added or updated
+    if (env_model_repository_.getNodeByName().expired()) 
+    {
+      // Add the new node
+      env_model_repository_.addNode(pl.parent, pl));
+    }
+    
+
   }
+  
 
   // If this object was added by its own namespace, then advertise this config to other managers
   if (!from_other_manager)
   {
     TEMOTO_DEBUG("Advertising the objects to other namespaces.");
-    object_syncer_.advertise(objects_to_add);
+    object_syncer_.advertise(objects_to_add); // TODO: REPLACE WITH SERIALIZED EMR
   }
 }
+// /*
+//  * Object update callback
+//  */
+// void ContextManager::addOrUpdateObjects(const Objects& objects_to_add, bool from_other_manager)
+// {
+//   // Loop over the list of provided objects
+//   for (auto object : objects_to_add)
+//   {
+//     // Replace all spaces in the name with the underscore character
+//     std::replace(object.name.begin(), object.name.end(), ' ', '_');
+
+//     // Check if the object has to be added or updated
+//     auto it = std::find_if(objects_.begin(), objects_.end(),
+//         [&](const ObjectPtr& o_ptr) { return *o_ptr == object; });
+
+//     // Update the object
+//     if (it != objects_.end())
+//     {
+//       TEMOTO_INFO("Updating object: '%s'.", object.name.c_str());
+//       *it = std::make_shared<temoto_context_manager::ObjectContainer>(object);
+//     }
+
+//     // Add new object
+//     else
+//     {
+//       TEMOTO_INFO("Adding new object: '%s'.", object.name.c_str());
+//       objects_.push_back(std::make_shared<temoto_context_manager::ObjectContainer>(object));
+//     }
+//   }
+
+//   // If this object was added by its own namespace, then advertise this config to other managers
+//   if (!from_other_manager)
+//   {
+//     TEMOTO_DEBUG("Advertising the objects to other namespaces.");
+//     object_syncer_.advertise(objects_to_add);
+//   }
+// }
 
 /*
  * Advertise all objects
  */
+// 
 void ContextManager::advertiseAllObjects()
 {
-  // Publish all objects
-  Objects objects_payload;
-
-  for (auto& object : objects_)
-  {
-    objects_payload.push_back(*object);
-  }
-
-  // Send to other managers if there is anything to send
-  if (objects_payload.size())
-  {
-    object_syncer_.advertise(objects_payload);
-  }
+  env_model_repository_.advertiseAllNodes();
 }
+// /*
+//  * Advertise all objects
+//  */
+// void ContextManager::advertiseAllObjects()
+// {
+//   // Publish all objects
+//   Objects objects_payload;
+
+//   for (auto& object : objects_)
+//   {
+//     objects_payload.push_back(*object);
+//   }
+
+//   // Send to other managers if there is anything to send
+//   if (objects_payload.size())
+//   {
+//     object_syncer_.advertise(objects_payload);
+//   }
+// }
 
 /*
  * Find object
@@ -215,11 +269,11 @@ ObjectPtr ContextManager::findObject(std::string object_name)
 /*
  * Callback for adding objects
  */
-bool ContextManager::addObjectsCb(AddObjects::Request& req, AddObjects::Response& res)
+bool ContextManager::updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& res)
 {
-  TEMOTO_INFO("Received a request to add %ld objects.", req.objects.size());
+  TEMOTO_INFO("Received a request to add %ld nodes to the EMR.", req.nodes.size());
 
-  addOrUpdateObjects(req.objects, false);
+  updateEMR(req.nodes, false);
 
   return true;
 }

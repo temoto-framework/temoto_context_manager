@@ -10,6 +10,7 @@
 #include "temoto_context_manager/context_manager_containers.h"
 #include "temoto_context_manager/tracking_method.h"
 #include "temoto_context_manager/context_manager_services.h"
+#include "temoto_context_manager/env_model_repository.h"
 
 #include "temoto_nlp/task_manager.h"
 #include "temoto_component_manager/component_manager_services.h"
@@ -99,7 +100,7 @@ private:
    * @param req
    * @param res
    */
-  bool addObjectsCb(AddObjects::Request& req, AddObjects::Response& res);
+  bool updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& res);
 
   void objectSyncCb(const temoto_core::ConfigSync& msg, const Objects& payload);
 
@@ -146,6 +147,8 @@ private:
   std::map<std::string, TrackerInfoPtrs> categorized_trackers_;
 
   std::map<int, TrackerInfoPtr> allocated_trackers_;
+
+  EnvironmentModelRepository env_model_repository_;
 
   temoto_core::temoto_id::IDManager pipe_id_generator_;
 
