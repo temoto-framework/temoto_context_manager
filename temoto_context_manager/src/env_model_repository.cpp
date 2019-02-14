@@ -17,7 +17,7 @@ namespace temoto_context_manager
 namespace emr 
 {
 
-void EnvironmentModelRepository::addNode(std::string parent, PayloadEntry payload)
+void EnvironmentModelRepository::addNode(std::string parent, std::unique_ptr<PayloadEntry> payload)
 {
   // Check if the parent exists
   if (nodes[parent].expired()) {
@@ -26,6 +26,10 @@ void EnvironmentModelRepository::addNode(std::string parent, PayloadEntry payloa
   }
   // Add the new node as a child to the parent, creating the child -> parent link in the process
   nodes[parent]->addChild(std::make_shared<Node>(Node(payload)));
+}
+void EnvironmentModelRepository::updateNode(std::string name, std::unique_ptr<PayloadEntry> plptr)
+{
+  nodes[name].updatePayload(plptr);
 }
 /**
  * @brief Add child node to existing node
@@ -54,17 +58,6 @@ void Node::setParent(std::shared_ptr<Node> parent)
     TEMOTO_ERROR("Node already has a parent.")
   } 
 }
-
-// Default constructor creates node with no connections and type "0"
-Node::Node() : payload(PayloadEntry("0")) {}
-Node::Node(PayloadEntry payload) : payload(payload) {}
-
-PayloadEntry::PayloadEntry(std::string type) : type(type) {}
-
-PayloadEntry::~PayloadEntry() {}
-
-PayloadEntry::PayloadEntry() : type("-1") {}
-
 
 /**
  * @brief Function to traverse and print out every node type in the tree

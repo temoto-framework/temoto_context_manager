@@ -7,11 +7,7 @@ namespace cereal
 {
   template <class Archive> 
   struct specialize<Archive, ROSPayload, cereal::specialization::member_load_save> {};
-  template <class Archive> 
-  struct specialize<Archive, MapEntry, cereal::specialization::member_serialize> {};
-  template <class Archive> 
-  struct specialize<Archive, ObjectEntry, cereal::specialization::member_serialize> {};
-  template <class Archive> 
+  template <class Archive>
   struct specialize<Archive, PayloadEntry, cereal::specialization::member_serialize> {};
   // cereal no longer has any ambiguity when serializing inherited classes
 }
@@ -46,7 +42,8 @@ public:
    * @param parent name of parent node
    * @param entry payload
    */
-  void addNode(std::string parent, PayloadEntry entry);
+  void addNode(std::string parent, std::unique_ptr<PayloadEntry> entry);
+  void updateNode(std::string parent, std::unique_ptr<PayloadEntry> entry);
 
   NodePtr getNodeByName(std::string node_name)
   {
@@ -57,19 +54,24 @@ public:
   ~EnvironmentModelRepository() {}
 };
 
-
+/**
+ * @brief A single node in the EMR tree
+ * 
+ * A node contains a payload and pointers to its (singular) parent and children.
+ * 
+ */
 class Node : public std::enable_shared_from_this<Node>
 {
 private:
   std::weak_ptr<Node> parent;
-  std::vector<std::shared_ptr<Node> > children;
-  PayloadEntry payload;
+  std::vector<std::shared_ptr<Node>> children;
+  std::unique_ptr<PayloadEntry> payload;
 
 public:
   template <class Archive>
   void serialize(Archive& archive)
   {
-    archive(name, parent, children, payload);
+    archive(parent, children, payload);
   }
   void addChild(std::shared_ptr<Node> child);
   void setParent(std::shared_ptr<Node> parent);
@@ -77,19 +79,22 @@ public:
   {
     return parent;
   }
-  std::vector<std::shared_ptr<Node> > getChildren()
+  std::vector<std::shared_ptr<Node>> getChildren()
   {
     return children;
   }
-  PayloadEntry getPayload()
+  std::unique_ptr<PayloadEntry> getPayload()
   {
     return payload;
   }
-  std::string getName() {return payload.getName();}
+  std::string getName() {return payload->getName();}
 
-  Node();
-  Node(PayloadEntry payload);
+  void setPayload(unique_ptr<PayloadEntry> plptr) {payload = plptr;}
+
   ~Node() {}
+  // Default constructor creates node with no connections and type "0"
+  Node::Node() {}
+  Node::Node(std::unique_ptr<PayloadEntry> payload) : payload(payload) {}
 };
 
 /**
@@ -103,11 +108,11 @@ private:
 public:
   std::string type;
 
-  PayloadEntry(std::string type);
+  PayloadEntry::PayloadEntry(std::string type) : type(type) {}
 
-  ~PayloadEntry();
+  PayloadEntry::~PayloadEntry() {}
 
-  PayloadEntry();
+  PayloadEntry::PayloadEntry() {}
 
   template <class Archive>
   void serialize(Archive& archive)

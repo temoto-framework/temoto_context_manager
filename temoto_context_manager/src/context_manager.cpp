@@ -146,35 +146,54 @@ void ContextManager::updateEMR(const Nodes& nodes_to_add, bool from_other_manage
 
   for (auto node : nodes_to_add)
   {
-    PayloadEntry pl;
+    // The information we need to extract from the payloads
+    unique_ptr<PayloadEntry> plptr; // Payload pointer to pass to EMR
+    std::string parent;             // Name of parent EMR node
+    std::string name;               // Name of new node
+ 
     if (node.type == "OBJECT") 
     {
-      pl = (PayloadEntry) temoto_core::deserializeROSmsg<ObjectContainer>(node);
+      // Deserialize into an ObjectContainer object and create the corresponding
+      //  EMR ROSPayload 
+      emr::ROSPayload<ObjectContainer>
+        (temoto_core::deserializeROSmsg<ObjectContainer>(node))) rospl;
+      parent = rospl.parent;
+      name = rospl.name;
+      
+      plptr = std::make_unique<PayloadEntry> (rospl);
     }
     else if (node.type == "MAP") 
     {
-      pl = (PayloadEntry) temoto_core::deserializeROSmsg<MapContainer>(node);
+      // Deserialize into a MapContainer object and create the corresponding
+      //  EMR ROSPayload 
+      emr::ROSPayload<ObjectContainer>
+        (temoto_core::deserializeROSmsg<ObjectContainer>(node))) rospl;
+      parent = rospl.parent;
+      name = rospl.name;
+
+      plptr = std::make_unique<PayloadEntry> (rospl);
     }
     else
     {
       TEMOTO_ERROR("Wrong type " << node.type << "specified for EMR node")
     }
-    
-    
-    NodeContainer node_container = temoto_core::deserializeROSmsg<NodeContainer>(nodes_to_add);
 
-    std::replace(pl.name.begin(), pl.name.end(), ' ', '_');
+    std::replace(name.begin(), name.end(), ' ', '_');
     // Check if the object has to be added or updated
-    if (env_model_repository_.getNodeByName(pl.name).expired()) 
+    if (env_model_repository_.getNodeByName(name).expired()) 
     {
       // Add the new node
-      env_model_repository_.addNode(pl.parent, pl));
+      env_model_repository_.addNode(parent, plptr);
     }
+    else
+    {
+      // Update the node information
+      env_model_repository_.updateNode(name, plptr));
+    }
+    
     
 
   }
-  
-
   // If this object was added by its own namespace, then advertise this config to other managers
   if (!from_other_manager)
   {
