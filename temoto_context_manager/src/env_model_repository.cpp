@@ -17,14 +17,16 @@ namespace temoto_context_manager
 namespace emr 
 {
 
-
-PayloadEntry::PayloadEntry(std::string type) : type(type) {}
-
-PayloadEntry::~PayloadEntry() {}
-
-PayloadEntry::PayloadEntry() : type("-1") {}
-
-
+void EnvironmentModelRepository::addNode(std::string parent, PayloadEntry payload)
+{
+  // Check if the parent exists
+  if (nodes[parent].expired()) {
+    TEMOTO_ERROR("No parent with name " << parent << " found in EMR!");
+    return;
+  }
+  // Add the new node as a child to the parent, creating the child -> parent link in the process
+  nodes[parent]->addChild(std::make_shared<Node>(Node(payload)));
+}
 /**
  * @brief Add child node to existing node
  * 
@@ -55,7 +57,13 @@ void Node::setParent(std::shared_ptr<Node> parent)
 
 // Default constructor creates node with no connections and type "0"
 Node::Node() : payload(PayloadEntry("0")) {}
-Node::Node(PayloadEntry map_container) : payload(map_container) {}
+Node::Node(PayloadEntry payload) : payload(payload) {}
+
+PayloadEntry::PayloadEntry(std::string type) : type(type) {}
+
+PayloadEntry::~PayloadEntry() {}
+
+PayloadEntry::PayloadEntry() : type("-1") {}
 
 
 /**

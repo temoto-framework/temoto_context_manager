@@ -165,7 +165,7 @@ void ContextManager::updateEMR(const Nodes& nodes_to_add, bool from_other_manage
 
     std::replace(pl.name.begin(), pl.name.end(), ' ', '_');
     // Check if the object has to be added or updated
-    if (env_model_repository_.getNodeByName().expired()) 
+    if (env_model_repository_.getNodeByName(pl.name).expired()) 
     {
       // Add the new node
       env_model_repository_.addNode(pl.parent, pl));

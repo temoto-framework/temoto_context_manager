@@ -11,6 +11,8 @@ namespace cereal
   struct specialize<Archive, MapEntry, cereal::specialization::member_serialize> {};
   template <class Archive> 
   struct specialize<Archive, ObjectEntry, cereal::specialization::member_serialize> {};
+  template <class Archive> 
+  struct specialize<Archive, PayloadEntry, cereal::specialization::member_serialize> {};
   // cereal no longer has any ambiguity when serializing inherited classes
 }
 
@@ -19,66 +21,46 @@ namespace temoto_context_manager
 namespace emr 
 {
 
-
-class PayloadEntry
+/**
+ * @brief Wrapper class to store pointers to all nodes of a tree in a map
+ * 
+ */
+class EnvironmentModelRepository
 {
-private:
-  
 public:
-  std::string type;
-
-  PayloadEntry(std::string type);
-
-  ~PayloadEntry();
-
-  PayloadEntry();
+  std::map<std::string, std::shared_ptr<Node>> nodes;
 
   template <class Archive>
-  void serialize(Archive& archive)
+  void serialize(Archive & archive)
   {
-    archive(type);
+    archive(nodes);
   }
-  std::string getName() = 0;
+
+  void advertiseAllNodes();
+
+  /**
+   * @brief Add a node to the EMR
+   * 
+   * If parent name is empty, the EMR root node is set as the parent.
+   * 
+   * @param parent name of parent node
+   * @param entry payload
+   */
+  void addNode(std::string parent, PayloadEntry entry);
+
+  NodePtr getNodeByName(std::string node_name)
+  {
+    return nodes[node_name];
+  }
+
+  EnvironmentModelRepository() {}
+  ~EnvironmentModelRepository() {}
 };
 
-template <class ROSMsg>
-class ROSPayload : public PayloadEntry
-{
-private:
-  ROSMsg payload;
-  mutable std::vector<uint8_t> payload_byte_array;
-public:
-
-  template<class Archive>
-  void save(Archive& archive) const{
-    payload_byte_array = temoto_core::serializeROSmsg<ROSMsg>(payload);
-    archive(cereal::base_class<PayloadEntry>(this), payload_byte_array);
-  }
-  template<class Archive>
-  void load(Archive& archive) {
-    archive(cereal::base_class<PayloadEntry>(this), payload_byte_array);
-    payload = temoto_core::deserializeROSmsg<ROSMsg>(payload_byte_array);
-  }
-  std::string getName()
-  {
-    return payload.name;
-  }
-  ROSPayload()
-  {
-  }
-  ROSPayload(ROSMsg payload) : payload(payload)
-  {
-  }
-
-  ~ROSPayload()
-  {
-  }
-};
 
 class Node : public std::enable_shared_from_this<Node>
 {
 private:
-  std::string name;
   std::weak_ptr<Node> parent;
   std::vector<std::shared_ptr<Node> > children;
   PayloadEntry payload;
@@ -103,6 +85,7 @@ public:
   {
     return payload;
   }
+  std::string getName() {return payload.getName();}
 
   Node();
   Node(PayloadEntry payload);
@@ -110,72 +93,65 @@ public:
 };
 
 /**
- * @brief Wrapper class to store pointers to all nodes of a tree in a map
+ * @brief Abstract base class for payloads
  * 
  */
-class EnvironmentModelRepository
+class PayloadEntry
 {
-public:
-  std::map<std::string, std::shared_ptr<Node> > nodes;
-
-  template <class Archive>
-  void serialize(Archive & archive)
-  {
-    archive(nodes);
-  }
-
-  void advertiseAllNodes();
-
-  /**
-   * @brief Add a node to the EMR
-   * 
-   * If parent name is empty, the EMR root node is set as the parent.
-   * 
-   * @param parent name of parent node
-   * @param entry payload
-   */
-  void addNode(std::string parent, PayloadEntry entry);
-
-  ObjectPtr findObject(std::string object_name);
-
-  NodePtr findNodeByName(std::string node_name)
-  {
-    return nodes[node_name];
-  }
-
-  EnvironmentModelRepository() {}
-  ~EnvironmentModelRepository() {}
-};
-
-class ObjectEntry : private ROSPayload<ObjectContainer>
-{
-public:
-
-  ObjectEntry() {}
-  ObjectEntry(ObjectContainer obj_container) : ROSPayload<ObjectContainer>(obj_container) {}
-  ~ObjectEntry() {}
-
-  template <class Archive>
-  void serialize(Archive & archive)
-  {
-    archive(cereal::base_class<ROSPayload>(this));
-  }
-};
-
-class MapEntry : private ROSPayload<MapContainer>
-{
-public:
-
-  MapEntry() {}
-  MapEntry(MapContainer map_container) : ROSPayload<MapContainer>(map_container) {}
-  ~MapEntry() {}
-
-  template <class Archive>
-  void serialize(Archive & archive)
-  {
-    archive(cereal::base_class<ROSPayload>(this));
-  }
+private:
   
+public:
+  std::string type;
+
+  PayloadEntry(std::string type);
+
+  ~PayloadEntry();
+
+  PayloadEntry();
+
+  template <class Archive>
+  void serialize(Archive& archive)
+  {
+    archive(type);
+  }
+  virtual std::string getName() = 0;
+  std::string getType() {return type;}
+};
+
+template <class ROSMsg>
+class ROSPayload : public PayloadEntry
+{
+private:
+  ROSMsg payload;
+  mutable std::vector<uint8_t> payload_byte_array;
+public:
+
+  template<class Archive>
+  void save(Archive& archive) const
+  {
+    payload_byte_array = temoto_core::serializeROSmsg<ROSMsg>(payload);
+    archive(cereal::base_class<PayloadEntry>(this), payload_byte_array);
+  }
+  template<class Archive>
+  void load(Archive& archive) 
+  {
+    archive(cereal::base_class<PayloadEntry>(this), payload_byte_array);
+    payload = temoto_core::deserializeROSmsg<ROSMsg>(payload_byte_array);
+  }
+  std::string getName()
+  {
+    return payload.name;
+  }
+  ROSPayload()
+  {
+  }
+  ROSPayload(ROSMsg payload) : payload(payload)
+  {
+  }
+
+  ~ROSPayload()
+  {
+  }
 };
 
 
