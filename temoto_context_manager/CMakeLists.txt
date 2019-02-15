@@ -29,6 +29,7 @@ add_message_files(FILES
   SpeechSpecifier.msg
   ObjectContainer.msg
   MapContainer.msg
+  NodeContainer.msg
 )
 
 add_service_files(
@@ -38,6 +39,7 @@ add_service_files(
   LoadSpeech.srv
   AddObjects.srv
   TrackObject.srv
+  UpdateEMR.srv
 )
 
 generate_messages(

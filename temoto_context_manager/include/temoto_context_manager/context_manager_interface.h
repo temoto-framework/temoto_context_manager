@@ -52,6 +52,7 @@ public:
     resource_manager_->registerStatusCb(&ContextManagerInterface::statusInfoCb);
 
     // Add object service client
+    update_EMR_client_ = nh_.serviceClient<UpdateEMR>(srv_name::SERVER_UPDATE_EMR);
     add_object_client_ = nh_.serviceClient<AddObjects>(srv_name::SERVER_ADD_OBJECTS);
   }
 
@@ -194,6 +195,45 @@ public:
   }
 
   /**
+   * @brief Add single container to EMR
+   * 
+   * @tparam Container 
+   * @param container 
+   */
+  template <class Container>
+  void addToEMR(Container container)
+  {
+    std::vector<Container> containers;
+    containers.push_back(container);
+    addToEMR(containers);
+  }
+  template <class Container>
+  void addToEMR(const std::vector<Container> & containers)
+  {
+    for (auto &container : containers)
+    {
+      if (container.name == "")
+      {
+        throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL , "The container is missing a name");
+      }
+    }
+    UpdateEMR update_EMR_srvmsg;
+    update_EMR_srvmsg.request.nodes = containers;
+
+    if (!update_EMR_client.call(update_EMR_srvmsg)) {
+      throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
+    }
+
+    // Check the response code
+    // TODO: First of all, transfer the RMP members straight to the request part.
+    //       Then, instead of checkin the code, check the error stack.
+    if (update_EMR_srvmsg.response.rmp.code != 0)
+    {
+      throw FORWARD_ERROR(update_EMR_srvmsg.response.rmp.error_stack);
+    }
+    
+  }
+  /**
    * @brief addWorldObjects
    * @param objects
    */
@@ -243,6 +283,7 @@ public:
     objects.push_back(object);
     addWorldObjects(objects);
   }
+  
 
   /**
    * @brief stopAllocatedServices
@@ -413,6 +454,7 @@ private:
   ros::NodeHandle nh_;
   ros::Subscriber speech_subscriber_;
   ros::ServiceClient add_object_client_;
+  ros::ServiceClient update_EMR_client_;
 
   std::vector<LoadSpeech> allocated_speeches_;
   std::vector<LoadTracker> allocated_trackers_;

@@ -3,11 +3,6 @@
 #include <memory>
 #include <sstream>
 #include <vector>
-#include "cereal/archives/json.hpp"
-#include "cereal/cereal.hpp"
-#include "cereal/types/map.hpp"
-#include "cereal/types/memory.hpp"
-#include "cereal/types/vector.hpp"
 #include <ros/serialization.h>
 #include "temoto_context_manager/context_manager_containers.h"
 #include "temoto_context_manager/env_model_repository.h"
@@ -17,19 +12,32 @@ namespace temoto_context_manager
 namespace emr 
 {
 
-void EnvironmentModelRepository::addNode(std::string parent, std::unique_ptr<PayloadEntry> payload)
+void EnvironmentModelRepository::addNode(std::string name, std::string parent, std::shared_ptr<PayloadEntry> payload)
 {
-  // Check if the parent exists
-  if (nodes[parent].expired()) {
-    TEMOTO_ERROR("No parent with name " << parent << " found in EMR!");
-    return;
+  
+  // Check if we need to attach to a parent
+  if (parent == "")
+  {
+    // Add the node to the tree without a parent
+    nodes[name] = std::make_shared<Node>(Node(payload));
+    // If this was the first node to be added, make it the root node
+    if (nodes.size() == 1) 
+    {
+      rootNode = nodes[name];
+    }
   }
-  // Add the new node as a child to the parent, creating the child -> parent link in the process
-  nodes[parent]->addChild(std::make_shared<Node>(Node(payload)));
+  else
+  {
+    // Parent is legit, add the node to the tree
+    nodes[name] = std::make_shared<Node>(Node(payload));
+    // Add the new node as a child to the parent, creating the child -> parent link in the process
+    nodes[parent]->addChild(nodes[name]);
+  }
 }
-void EnvironmentModelRepository::updateNode(std::string name, std::unique_ptr<PayloadEntry> plptr)
+
+void EnvironmentModelRepository::updateNode(std::string name, std::shared_ptr<PayloadEntry> plptr)
 {
-  nodes[name].updatePayload(plptr);
+  nodes[name].setPayload(plptr);
 }
 /**
  * @brief Add child node to existing node

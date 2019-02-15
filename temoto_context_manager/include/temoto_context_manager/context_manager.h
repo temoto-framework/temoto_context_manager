@@ -102,11 +102,25 @@ private:
    */
   bool updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& res);
 
-  void objectSyncCb(const temoto_core::ConfigSync& msg, const Objects& payload);
-
   void trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload);
 
-  void advertiseAllObjects();
+  void advertiseEMR();
+
+  /**
+   * @brief Save the EMR state as a NodeContainer vector
+   * 
+   * @param emr 
+   * @return Nodes 
+   */
+  Nodes EMRtoVector(emr::EnvironmentModelRepository& emr);
+
+  /**
+   * @brief Recursive helper function to save EMR state
+   * 
+   * @param currentNode 
+   * @param nodes 
+   */
+  void EMRtoVectorHelper(emr::Node& currentNode, Nodes& nodes);
 
   void addOrUpdateObjects(const Objects& objects_to_add, bool from_other_manager);
 
@@ -154,7 +168,7 @@ private:
 
   // Configuration syncer that manages external resource descriptions and synchronizes them
   // between all other (context) managers
-  temoto_core::rmp::ConfigSynchronizer<ContextManager, Objects> object_syncer_;
+  temoto_core::rmp::ConfigSynchronizer<ContextManager, Nodes> EMR_syncer_;
 
   temoto_core::rmp::ConfigSynchronizer<ContextManager, std::string> tracked_objects_syncer_;
 
