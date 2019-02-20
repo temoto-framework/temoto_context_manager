@@ -95,12 +95,11 @@ private:
    */
   void unloadSpeechCb(LoadSpeech::Request& req, LoadSpeech::Response& res);
 
-  /**
-   * @brief addObjectCb
-   * @param req
-   * @param res
-   */
+  void EMRSyncCb(const temoto_core::ConfigSync& msg, const Nodes& payload);
+
   bool updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& res);
+
+  void updateEMR(const Nodes & nodes_to_add, bool from_other_manager);
 
   void trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload);
 
@@ -150,7 +149,7 @@ private:
 
   ros::NodeHandle nh_;
 
-  ros::ServiceServer add_objects_server_;
+  ros::ServiceServer update_emr_server_;
 
   ObjectPtrs objects_;
 
@@ -162,7 +161,7 @@ private:
 
   std::map<int, TrackerInfoPtr> allocated_trackers_;
 
-  EnvironmentModelRepository env_model_repository_;
+  emr::EnvironmentModelRepository env_model_repository_;
 
   temoto_core::temoto_id::IDManager pipe_id_generator_;
 

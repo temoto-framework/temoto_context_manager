@@ -3,15 +3,12 @@
 #include <memory>
 #include <sstream>
 #include <vector>
-#include <ros/serialization.h>
-#include "temoto_context_manager/context_manager_containers.h"
 #include "temoto_context_manager/env_model_repository.h"
 
 namespace temoto_context_manager 
 {
 namespace emr 
 {
-
 void EnvironmentModelRepository::addNode(std::string name, std::string parent, std::shared_ptr<PayloadEntry> payload)
 {
   
@@ -23,7 +20,7 @@ void EnvironmentModelRepository::addNode(std::string name, std::string parent, s
     // If this was the first node to be added, make it the root node
     if (nodes.size() == 1) 
     {
-      rootNode = nodes[name];
+      root_node = nodes[name];
     }
   }
   else
@@ -37,7 +34,12 @@ void EnvironmentModelRepository::addNode(std::string name, std::string parent, s
 
 void EnvironmentModelRepository::updateNode(std::string name, std::shared_ptr<PayloadEntry> plptr)
 {
-  nodes[name].setPayload(plptr);
+  nodes[name]->setPayload(plptr);
+}
+
+bool EnvironmentModelRepository::hasNode(std::string name)
+{
+  return nodes.count(name);
 }
 /**
  * @brief Add child node to existing node
@@ -56,14 +58,14 @@ void Node::addChild(std::shared_ptr<Node> child)
  */
 void Node::setParent(std::shared_ptr<Node> parent)
 {
-  TEMOTO_DEBUG("Attempting to add " << parent->name << " as parent to " << name);
-  // Check if the node already has a parent
-  if (parent.expired()) {
-    parent = parent;
+//   TEMOTO_DEBUG("Attempting to add " << parent->name.c_str() << " as parent to " << name);
+  // Make sure the node does not already have a parent
+  if (parent_.expired()) {
+    parent_ = parent;
   }
   else
   {
-    TEMOTO_ERROR("Node already has a parent.")
+    // TEMOTO_ERROR("Node already has a parent.")
   } 
 }
 
@@ -74,7 +76,7 @@ void Node::setParent(std::shared_ptr<Node> parent)
  */
 void traverseTree(Node root)
 {
-  std::cout << root.getPayload().getType();
+  std::cout << root.getPayload()->getType();
   std::vector<std::shared_ptr<Node> > children = root.getChildren();
   for (uint32_t i = 0; i < children.size(); i++)
   {
@@ -90,14 +92,13 @@ void traverseTree(Node root)
  */
 std::weak_ptr<Node> findRoot(std::shared_ptr<Node> pNode)
 {
-  std::cout << pNode->getPayload().getType();
+  std::cout << pNode->getPayload()->getType();
   if (pNode->getParent().expired())
   {
     return pNode;
   }
   return findRoot(pNode->getParent().lock());
 }
-
 
 
 } // namespace emr
