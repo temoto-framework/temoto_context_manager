@@ -26,6 +26,11 @@ public:
   PayloadEntry() {}
 
   virtual std::string getName() = 0;
+  /**
+   * @brief Get the type of the Payload
+   * 
+   * @return std::string 
+   */
   std::string getType() {return type;}
 };
 
@@ -33,24 +38,29 @@ template <class ROSMsg>
 class ROSPayload : public PayloadEntry
 {
 private:
-  ROSMsg payload;
+  ROSMsg payload_;
 public:
-
+  /**
+   * @brief Get the Name object
+   * 
+   * @return std::string 
+   */
   std::string getName()
   {
-    return payload.name;
+    return payload_.name;
   }
-  ROSMsg getPayload() {return payload;};
-  ROSPayload()
-  {
-  }
-  ROSPayload(ROSMsg payload) : payload(payload)
+  ROSMsg getPayload() {return payload_;};
+  /**
+   * @brief Set the Payload object
+   * 
+   * @param payload 
+   */
+  void setPayload(ROSMsg & payload) {payload_ = payload;};
+
+  ROSPayload(ROSMsg payload) : payload_(payload)
   {
   }
 
-  ~ROSPayload()
-  {
-  }
 };
 
 /**
@@ -63,35 +73,62 @@ class Node : public std::enable_shared_from_this<Node>
 {
 private:
   std::weak_ptr<Node> parent_;
-  std::vector<std::shared_ptr<Node>> children;
-  std::shared_ptr<PayloadEntry> payload;
+  std::vector<std::shared_ptr<Node>> children_;
+  std::shared_ptr<PayloadEntry> payload_;
 
 public:
 
   void addChild(std::shared_ptr<Node> child);
+  /**
+   * @brief Set the Parent pointer
+   * 
+   * NB! Don't use this manually. Use addChild() of parent instead.
+   * 
+   * @param parent 
+   */
   void setParent(std::shared_ptr<Node> parent);
   std::weak_ptr<Node> getParent()
   {
     return parent_;
   }
+  /**
+   * @brief Get children of node
+   * 
+   * @return std::vector<std::shared_ptr<Node>> 
+   */
   std::vector<std::shared_ptr<Node>> getChildren()
   {
-    return children;
+    return children_;
   }
+  /**
+   * @brief Get the pointer to Payload
+   * 
+   * @return std::shared_ptr<PayloadEntry> 
+   */
   std::shared_ptr<PayloadEntry> getPayload()
   {
-    return payload;
+    return payload_;
   }
-  std::string getName() {return payload->getName();}
+  std::string getName() {return payload_->getName();}
+  
+  /**
+   * @brief Check if the node is a root node
+   * 
+   * A node is a root node if it has no parent i.e. the weak pointer
+   * to the parent is expired.
+   * 
+   * @return true 
+   * @return false 
+   */
+  bool isRoot() {return parent_.expired();}
+  /**
+   * @brief Set the Payload
+   * 
+   * @param plptr shared_ptr to Object inheriting PayloadEntry
+   */
+  void setPayload(std::shared_ptr<PayloadEntry> plptr) {payload_ = plptr;}
 
-  // Overwrite the content of the payload pointer, while keeping the address
-  void setPayload(std::shared_ptr<PayloadEntry> plptr) {*payload = *plptr;}
-
-
-  ~Node() {}
-  // Default constructor creates node with no connections and type "0"
-  Node() {}
-  Node(std::shared_ptr<PayloadEntry> payload) : payload(payload) {}
+  Node(std::shared_ptr<PayloadEntry> payload) : payload_(payload) {}
 };
 
 /**
@@ -100,10 +137,18 @@ public:
  */
 class EnvironmentModelRepository
 {
-public:
+private:
   std::map<std::string, std::shared_ptr<Node>> nodes;
-  void advertiseAllNodes();
-
+public:
+  /**
+   * @brief Get the root nodes of the structure
+   * 
+   * Since the EMR can have several disconnected trees and floating nodes,
+   * we need to be able to find the root nodes to serialize the tree
+   * 
+   * @return std::vector<std::shared_ptr<Node>> 
+   */
+  std::vector<std::shared_ptr<Node>> getRootNodes();
   /**
    * @brief Add a node to the EMR
    * 
@@ -126,18 +171,25 @@ public:
    * @param entry pointer to payload
    */
   void updateNode(std::string name, std::shared_ptr<PayloadEntry> entry);
-  std::shared_ptr<Node> getRootNode() {return root_node;}
+  /**
+   * @brief Get shared_ptr to node by name
+   * 
+   * @param node_name 
+   * @return std::shared_ptr<Node> 
+   */
   std::shared_ptr<Node> getNodeByName(std::string node_name)
   {
     return nodes[node_name];
   }
-
+  /**
+   * @brief Check if EMR contains a node with the given name
+   * 
+   * @param name 
+   * @return true if node exists
+   * @return false if node does not exist
+   */
   bool hasNode(std::string name);
 
-  EnvironmentModelRepository() {}
-  ~EnvironmentModelRepository() {}
-private:
-  std::shared_ptr<Node> root_node;
 };
 
 

@@ -6,7 +6,6 @@
 #include "temoto_context_manager/LoadSpeech.h"
 #include "temoto_context_manager/GetNumber.h"
 #include "temoto_context_manager/LoadTracker.h"
-#include "temoto_context_manager/AddObjects.h"
 #include "temoto_context_manager/TrackObject.h"
 #include "temoto_context_manager/UpdateEMR.h"
 

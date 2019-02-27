@@ -7,6 +7,8 @@
 #include "temoto_core/common/topic_container.h"
 #include "temoto_nlp/base_task/base_task.h"
 #include "temoto_context_manager/context_manager_services.h"
+#include "temoto_context_manager/MapContainer.h"
+#include "temoto_core/common/ros_serialization.h"
 
 #include "std_msgs/Float32.h"
 #include "std_msgs/String.h"
@@ -51,9 +53,8 @@ public:
     // register status callback function
     resource_manager_->registerStatusCb(&ContextManagerInterface::statusInfoCb);
 
-    // Add object service client
+    // Add EMR service client
     update_EMR_client_ = nh_.serviceClient<UpdateEMR>(srv_name::SERVER_UPDATE_EMR);
-    add_object_client_ = nh_.serviceClient<AddObjects>(srv_name::SERVER_ADD_OBJECTS);
   }
 
   int getNumber(const int number)
@@ -193,7 +194,6 @@ public:
       throw FORWARD_ERROR(error_stack);
     }
   }
-
   /**
    * @brief Add single container to EMR
    * 
@@ -207,20 +207,44 @@ public:
     containers.push_back(container);
     addToEMR(containers);
   }
+  /**
+   * @brief Add several containers to EMR
+   * 
+   * Containers must be predefined as ROS messages in the context manager.
+   * A container can be any ROS message with a name, parent(optional) and a payload.
+   * 
+   * @tparam Container 
+   * @param containers 
+   */
   template <class Container>
   void addToEMR(const std::vector<Container> & containers)
   {
+    std::vector<temoto_context_manager::NodeContainer> node_containers;
     for (auto &container : containers)
     {
       if (container.name == "")
       {
         throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL , "The container is missing a name");
       }
+      else
+      {
+        temoto_context_manager::NodeContainer nc;
+        // Check the type of the container
+        if (std::is_same<Container, ObjectContainer>::value) {
+          nc.type = "OBJECT";
+        }
+        else if (std::is_same<Container, MapContainer>::value) {
+          nc.type = "MAP";
+        }
+        nc.serialized_container = temoto_core::serializeROSmsg(container);
+        node_containers.push_back(nc);
+      }
+      
     }
     UpdateEMR update_EMR_srvmsg;
-    update_EMR_srvmsg.request.nodes = containers;
+    update_EMR_srvmsg.request.nodes = node_containers;
 
-    if (!update_EMR_client.call(update_EMR_srvmsg)) {
+    if (!update_EMR_client_.call<UpdateEMR>(update_EMR_srvmsg)) {
       throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
     }
 
@@ -233,57 +257,6 @@ public:
     }
     
   }
-  /**
-   * @brief addWorldObjects
-   * @param objects
-   */
-  void addWorldObjects(const std::vector<ObjectContainer>& objects)
-  {
-    // Check if this message contains the basic parameters
-    // Does it have a name
-    for (auto& object : objects)
-    {
-      if (object.name == "")
-      {
-        throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL , "The object is missing a name");
-      }
-
-      // Are the detection methods specified
-      if (object.detection_methods.empty())
-      {
-        throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Detection method unspecified");
-      }
-    }
-
-    AddObjects add_obj_srvmsg;
-    add_obj_srvmsg.request.objects = objects;
-
-    // Call the server
-    if (!add_object_client_.call(add_obj_srvmsg))
-    {
-       throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
-    }
-
-    // Check the response code
-    // TODO: First of all, transfer the RMP members straight to the request part.
-    //       Then, instead of checkin the code, check the error stack.
-    if (add_obj_srvmsg.response.rmp.code != 0)
-    {
-      throw FORWARD_ERROR(add_obj_srvmsg.response.rmp.error_stack);
-    }
-  }
-
-  /**
-   * @brief addWorldObjects
-   * @param object
-   */
-  void addWorldObjects(const ObjectContainer& object)
-  {
-    std::vector<ObjectContainer> objects;
-    objects.push_back(object);
-    addWorldObjects(objects);
-  }
-  
 
   /**
    * @brief stopAllocatedServices
@@ -453,7 +426,6 @@ private:
 
   ros::NodeHandle nh_;
   ros::Subscriber speech_subscriber_;
-  ros::ServiceClient add_object_client_;
   ros::ServiceClient update_EMR_client_;
 
   std::vector<LoadSpeech> allocated_speeches_;

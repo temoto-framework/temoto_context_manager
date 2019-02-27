@@ -17,11 +17,6 @@ void EnvironmentModelRepository::addNode(std::string name, std::string parent, s
   {
     // Add the node to the tree without a parent
     nodes[name] = std::make_shared<Node>(Node(payload));
-    // If this was the first node to be added, make it the root node
-    if (nodes.size() == 1) 
-    {
-      root_node = nodes[name];
-    }
   }
   else
   {
@@ -41,6 +36,18 @@ bool EnvironmentModelRepository::hasNode(std::string name)
 {
   return nodes.count(name);
 }
+std::vector<std::shared_ptr<Node>> EnvironmentModelRepository::getRootNodes()
+{
+  std::vector<std::shared_ptr<Node>> root_nodes;
+  for (auto const& pair : nodes)
+  {
+    if (pair.second->isRoot())
+    {
+      root_nodes.push_back(pair.second);
+    }
+  }
+  return root_nodes;
+}
 /**
  * @brief Add child node to existing node
  * 
@@ -48,7 +55,7 @@ bool EnvironmentModelRepository::hasNode(std::string name)
  */
 void Node::addChild(std::shared_ptr<Node> child)
 {
-  children.push_back(child);
+  children_.push_back(child);
   child->setParent(shared_from_this());
 }
 /**
@@ -77,7 +84,7 @@ void Node::setParent(std::shared_ptr<Node> parent)
 void traverseTree(Node root)
 {
   std::cout << root.getPayload()->getType();
-  std::vector<std::shared_ptr<Node> > children = root.getChildren();
+  std::vector<std::shared_ptr<Node>> children = root.getChildren();
   for (uint32_t i = 0; i < children.size(); i++)
   {
     traverseTree(*children[i]);
@@ -99,7 +106,6 @@ std::weak_ptr<Node> findRoot(std::shared_ptr<Node> pNode)
   }
   return findRoot(pNode->getParent().lock());
 }
-
 
 } // namespace emr
 } // namespace temoto_context_manager

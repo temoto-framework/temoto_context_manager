@@ -96,13 +96,39 @@ private:
   void unloadSpeechCb(LoadSpeech::Request& req, LoadSpeech::Response& res);
 
   void EMRSyncCb(const temoto_core::ConfigSync& msg, const Nodes& payload);
-
+  
   bool updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& res);
 
+  void trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload);
+  /**
+   * @brief Update the EMR structure with new information
+   * 
+   * @param nodes_to_add 
+   * @param from_other_manager 
+   */
   void updateEMR(const Nodes & nodes_to_add, bool from_other_manager);
 
-  void trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload);
+  /**
+   * @brief Debug function to traverse through EMR tree 
+   * 
+   * @param root 
+   */
+  void traverseEMR(emr::Node& root);
+  
+  /**
+   * @brief Add or update a single node of the EMR
+   * 
+   * @tparam Container 
+   * @param container 
+   * @param container_type 
+   */
+  template <class Container>
+  void addOrUpdateEMRNode(Container & container, std::string container_type);
 
+  /**
+   * @brief Advertise the EMR state through the config syncer
+   * 
+   */
   void advertiseEMR();
 
   /**
@@ -120,8 +146,6 @@ private:
    * @param nodes 
    */
   void EMRtoVectorHelper(emr::Node& currentNode, Nodes& nodes);
-
-  void addOrUpdateObjects(const Objects& objects_to_add, bool from_other_manager);
 
   ObjectPtr findObject(std::string object_name);
 

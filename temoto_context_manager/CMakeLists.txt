@@ -37,7 +37,6 @@ add_service_files(
   GetNumber.srv
   LoadTracker.srv
   LoadSpeech.srv
-  AddObjects.srv
   TrackObject.srv
   UpdateEMR.srv
 )
@@ -62,7 +61,6 @@ catkin_package(
 
 include_directories(
   include
-  cereal/include
   ${catkin_INCLUDE_DIRS}
 )
 

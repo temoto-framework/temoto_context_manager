@@ -112,6 +112,22 @@ void ContextManager::EMRSyncCb(const temoto_core::ConfigSync& msg, const Nodes& 
     updateEMR(payload, true);
   }
 }
+/**
+ * @brief Function to traverse and print out every node name in the tree
+ * 
+ * @param root 
+ */
+void ContextManager::traverseEMR(emr::Node& root)
+{
+  TEMOTO_DEBUG_STREAM(root.getPayload()->getName());
+  std::shared_ptr<emr::ROSPayload<ObjectContainer>> msgptr = std::dynamic_pointer_cast<emr::ROSPayload<ObjectContainer>>(root.getPayload());
+  TEMOTO_DEBUG_STREAM("tag_id: " << msgptr->getPayload().tag_id);
+  std::vector<std::shared_ptr<emr::Node>> children = root.getChildren();
+  for (uint32_t i = 0; i < children.size(); i++)
+  {
+    traverseEMR(*children[i]);
+  }
+}
 
 /*
  * Tracked objects synchronization callback
@@ -140,7 +156,11 @@ void ContextManager::trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, co
 Nodes ContextManager::EMRtoVector(emr::EnvironmentModelRepository& emr)
 {
   Nodes nodes;
-  EMRtoVectorHelper(*emr.getRootNode(), nodes);
+  std::vector<std::shared_ptr<emr::Node>> root_nodes = emr.getRootNodes();
+  for (auto node : root_nodes)
+  {
+    EMRtoVectorHelper(*node, nodes);
+  }
   return nodes;
 }
 
@@ -183,85 +203,75 @@ void ContextManager::EMRtoVectorHelper(emr::Node& currentNode, Nodes& nodes)
   }
 }
 
-/*
- * EMR update callback
- */
+template <class Container>
+void ContextManager::addOrUpdateEMRNode(Container & container, std::string container_type)
+{
+  emr::ROSPayload<Container> rospl = emr::ROSPayload<Container>(container);
+  rospl.type = container_type;
+  std::string name = container.name;
+  std::string parent = container.parent;
+
+  // Check for empty name field
+  // Move these to the context manager interface maybe? TBD
+  if (name == "") 
+  {
+    TEMOTO_ERROR_STREAM("Empty string not allowed as EMR node name!");
+    return;
+  }
+  // Check if the parent exists
+  if ((!parent.empty()) && (!env_model_repository_.hasNode(parent))) 
+  {
+    TEMOTO_ERROR_STREAM("No parent with name " << parent << " found in EMR!");
+    return;
+  }
+  
+  // Check if the object has to be added or updated
+  if (!env_model_repository_.hasNode(name)) 
+  {
+    // Add the new node
+    std::shared_ptr<emr::ROSPayload<Container>> plptr = std::make_shared<emr::ROSPayload<Container>>(rospl);
+    env_model_repository_.addNode(name, parent, plptr);
+  }
+  else
+  {
+    // Update the node information
+    std::shared_ptr<emr::ROSPayload<Container>> plptr = std::make_shared<emr::ROSPayload<Container>>(rospl);
+    env_model_repository_.updateNode(name, plptr);
+  }
+  traverseEMR(*env_model_repository_.getNodeByName("Object1"));
+}
 
 void ContextManager::updateEMR(const Nodes& nodes_to_add, bool from_other_manager)
 {
 
   for (auto node_container : nodes_to_add)
   {
-    // The information we need to extract from the payloads
-    std::shared_ptr<emr::PayloadEntry> plptr; // Payload pointer to pass to EMR
-    std::string parent;             // Name of parent EMR node
-    std::string name;               // Name of new node
-    // Check for empty name field
-    if (name == "") 
-    {
-      TEMOTO_ERROR_STREAM("Empty string not allowed as EMR node name!");
-      return;
-    }
     if (node_container.type == "OBJECT") 
     {
-      // Deserialize into an ObjectContainer object and create the corresponding
-      //  EMR ROSPayload 
-      emr::ROSPayload<ObjectContainer> rospl = 
+      // Deserialize into an ObjectContainer object and add to EMR
+      ObjectContainer oc = 
         temoto_core::deserializeROSmsg<ObjectContainer>(node_container.serialized_container);
-      parent = rospl.getPayload().parent;
-      name = rospl.getPayload().name;
-      std::replace(name.begin(), name.end(), ' ', '_');
-      std::replace(parent.begin(), parent.end(), ' ', '_');
-      
-      plptr = std::make_shared<emr::ROSPayload<ObjectContainer>> (rospl.getPayload());
-      plptr->type = "OBJECT";
+      addOrUpdateEMRNode(oc, "OBJECT");
     }
     else if (node_container.type == "MAP") 
     {
-      // Deserialize into a MapContainer object and create the corresponding
-      //  EMR ROSPayload 
-      emr::ROSPayload<MapContainer> rospl = 
+      // Deserialize into an MapContainer object and add to EMR
+      MapContainer mc = 
         temoto_core::deserializeROSmsg<MapContainer>(node_container.serialized_container);
-
-      // TODO: Move the name editing to the context manager interface
-      parent = rospl.getPayload().parent;
-      name = rospl.getPayload().name;
-      std::replace(name.begin(), name.end(), ' ', '_');
-      std::replace(parent.begin(), parent.end(), ' ', '_');
-
-      plptr = std::make_shared<emr::ROSPayload<MapContainer>> (rospl.getPayload());
-      plptr->type = "MAP";
+      addOrUpdateEMRNode(mc, "MAP");
     }
     else
     {
       TEMOTO_ERROR_STREAM("Wrong type " << node_container.type.c_str() << "specified for EMR node");
       return;
     }
-    // Check if the parent exists
-    if (!env_model_repository_.hasNode(parent)) 
-    {
-      TEMOTO_ERROR_STREAM("No parent with name " << parent.c_str() << " found in EMR!");
-      return;
-    }
-
-    
-    // Check if the object has to be added or updated
-    if (!env_model_repository_.hasNode(name)) 
-    {
-      // Add the new node
-      env_model_repository_.addNode(name, parent, plptr);
-    }
-    else
-    {
-      // Update the node information
-      env_model_repository_.updateNode(name, plptr);
-    }
   }
+
   // If this object was added by its own namespace, then advertise this config to other managers
   if (!from_other_manager)
   {
-    TEMOTO_DEBUG("Advertising EMR to other namespaces.");
-    EMR_syncer_.advertise(nodes_to_add); 
+    TEMOTO_INFO("Advertising EMR to other namespaces.");
+    advertiseEMR(); 
   }
 }
 
@@ -305,7 +315,7 @@ ObjectPtr ContextManager::findObject(std::string object_name)
  */
 bool ContextManager::updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& res)
 {
-  TEMOTO_INFO("Received a request to add %ld nodes to the EMR.", req.nodes.size());
+  TEMOTO_INFO("Received a request to add %ld node(s) to the EMR.", req.nodes.size());
 
   ContextManager::updateEMR(req.nodes, false);
 
