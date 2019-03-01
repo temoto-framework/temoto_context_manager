@@ -6,8 +6,8 @@
 #include "temoto_context_manager/LoadSpeech.h"
 #include "temoto_context_manager/GetNumber.h"
 #include "temoto_context_manager/LoadTracker.h"
-#include "temoto_context_manager/AddObjects.h"
 #include "temoto_context_manager/TrackObject.h"
+#include "temoto_context_manager/UpdateEMR.h"
 
 namespace temoto_context_manager
 {
@@ -23,7 +23,7 @@ namespace temoto_context_manager
     const std::string MANAGER_2 = "temoto_context_manager_2";
     const std::string TRACKER_SERVER = "load_tracker";
 
-    const std::string SERVER_ADD_OBJECTS = "add_objects";
+    const std::string SERVER_UPDATE_EMR = "update_emr";
   }
 }
 
