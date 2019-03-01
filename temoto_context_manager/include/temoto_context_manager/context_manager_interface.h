@@ -201,7 +201,7 @@ public:
    * @param container 
    */
   template <class Container>
-  void addToEMR(Container container)
+  void addToEMR(const Container& container)
   {
     std::vector<Container> containers;
     containers.push_back(container);
@@ -220,7 +220,7 @@ public:
   void addToEMR(const std::vector<Container> & containers)
   {
     std::vector<temoto_context_manager::NodeContainer> node_containers;
-    for (auto &container : containers)
+    for (const auto& container : containers)
     {
       if (container.name == "")
       {

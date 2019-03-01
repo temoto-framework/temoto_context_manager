@@ -1,5 +1,5 @@
-#ifndef ENV_MODEL_REPOSITORY_H
-#define ENV_MODEL_REPOSITORY_H
+#ifndef TEMOTO_ENV_MODEL_REPOSITORY_H
+#define TEMOTO_ENV_MODEL_REPOSITORY_H
 
 namespace temoto_context_manager 
 {
@@ -14,10 +14,9 @@ namespace emr
  */
 class PayloadEntry
 {
-private:
-  
-public:
+protected:
   std::string type;
+public:
 
   PayloadEntry(std::string type) : type(type) {}
 
@@ -25,13 +24,14 @@ public:
 
   PayloadEntry() {}
 
-  virtual std::string getName() = 0;
+  const virtual std::string& getName() const = 0;
   /**
    * @brief Get the type of the Payload
    * 
-   * @return std::string 
+   * @return std::string
    */
-  std::string getType() {return type;}
+  const std::string& getType() const {return type;}
+  void setType(std::string ntype) {type = ntype;}
 };
 
 template <class ROSMsg>
@@ -45,11 +45,11 @@ public:
    * 
    * @return std::string 
    */
-  std::string getName()
+  const std::string& getName() const
   {
     return payload_.name;
   }
-  ROSMsg getPayload() {return payload_;};
+  const ROSMsg& getPayload() const {return payload_;};
   /**
    * @brief Set the Payload object
    * 
@@ -87,7 +87,7 @@ public:
    * @param parent 
    */
   void setParent(std::shared_ptr<Node> parent);
-  std::weak_ptr<Node> getParent()
+  const std::weak_ptr<Node>& getParent() const
   {
     return parent_;
   }
@@ -96,7 +96,7 @@ public:
    * 
    * @return std::vector<std::shared_ptr<Node>> 
    */
-  std::vector<std::shared_ptr<Node>> getChildren()
+  const std::vector<std::shared_ptr<Node>>& getChildren() const
   {
     return children_;
   }
@@ -105,11 +105,11 @@ public:
    * 
    * @return std::shared_ptr<PayloadEntry> 
    */
-  std::shared_ptr<PayloadEntry> getPayload()
+  const std::shared_ptr<PayloadEntry>& getPayload() const
   {
     return payload_;
   }
-  std::string getName() {return payload_->getName();}
+  const std::string& getName() const {return payload_->getName();}
   
   /**
    * @brief Check if the node is a root node
@@ -148,7 +148,7 @@ public:
    * 
    * @return std::vector<std::shared_ptr<Node>> 
    */
-  std::vector<std::shared_ptr<Node>> getRootNodes();
+  std::vector<std::shared_ptr<Node>> getRootNodes() const;
   /**
    * @brief Add a node to the EMR
    * 
@@ -177,7 +177,7 @@ public:
    * @param node_name 
    * @return std::shared_ptr<Node> 
    */
-  std::shared_ptr<Node> getNodeByName(std::string node_name)
+  const std::shared_ptr<Node>& getNodeByName(std::string node_name)
   {
     return nodes[node_name];
   }

@@ -36,7 +36,7 @@ bool EnvironmentModelRepository::hasNode(std::string name)
 {
   return nodes.count(name);
 }
-std::vector<std::shared_ptr<Node>> EnvironmentModelRepository::getRootNodes()
+std::vector<std::shared_ptr<Node>> EnvironmentModelRepository::getRootNodes() const
 {
   std::vector<std::shared_ptr<Node>> root_nodes;
   for (auto const& pair : nodes)
@@ -74,37 +74,6 @@ void Node::setParent(std::shared_ptr<Node> parent)
   {
     // TEMOTO_ERROR("Node already has a parent.")
   } 
-}
-
-/**
- * @brief Function to traverse and print out every node type in the tree
- * 
- * @param root 
- */
-void traverseTree(Node root)
-{
-  std::cout << root.getPayload()->getType();
-  std::vector<std::shared_ptr<Node>> children = root.getChildren();
-  for (uint32_t i = 0; i < children.size(); i++)
-  {
-    traverseTree(*children[i]);
-  }
-}
-
-/**
- * @brief Helper function to recursively find root node of tree
- * 
- * @param pNode pointer to any node in the tree
- * @return std::weak_ptr<Node> 
- */
-std::weak_ptr<Node> findRoot(std::shared_ptr<Node> pNode)
-{
-  std::cout << pNode->getPayload()->getType();
-  if (pNode->getParent().expired())
-  {
-    return pNode;
-  }
-  return findRoot(pNode->getParent().lock());
 }
 
 } // namespace emr

@@ -113,7 +113,7 @@ private:
    * 
    * @param root 
    */
-  void traverseEMR(emr::Node& root);
+  void traverseEMR(const emr::Node& root);
   
   /**
    * @brief Add or update a single node of the EMR
@@ -123,7 +123,7 @@ private:
    * @param container_type 
    */
   template <class Container>
-  void addOrUpdateEMRNode(Container & container, std::string container_type);
+  void addOrUpdateEMRNode(const Container & container, const std::string& container_type);
 
   /**
    * @brief Advertise the EMR state through the config syncer
@@ -137,7 +137,7 @@ private:
    * @param emr 
    * @return Nodes 
    */
-  Nodes EMRtoVector(emr::EnvironmentModelRepository& emr);
+  Nodes EMRtoVector(const emr::EnvironmentModelRepository& emr);
 
   /**
    * @brief Recursive helper function to save EMR state
@@ -145,7 +145,7 @@ private:
    * @param currentNode 
    * @param nodes 
    */
-  void EMRtoVectorHelper(emr::Node& currentNode, Nodes& nodes);
+  void EMRtoVectorHelper(const emr::Node& currentNode, Nodes& nodes);
 
   ObjectPtr findObject(std::string object_name);
 

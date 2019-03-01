@@ -117,7 +117,7 @@ void ContextManager::EMRSyncCb(const temoto_core::ConfigSync& msg, const Nodes& 
  * 
  * @param root 
  */
-void ContextManager::traverseEMR(emr::Node& root)
+void ContextManager::traverseEMR(const emr::Node& root)
 {
   TEMOTO_DEBUG_STREAM(root.getPayload()->getName());
   std::shared_ptr<emr::ROSPayload<ObjectContainer>> msgptr = std::dynamic_pointer_cast<emr::ROSPayload<ObjectContainer>>(root.getPayload());
@@ -153,18 +153,18 @@ void ContextManager::trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, co
   }
 }
 
-Nodes ContextManager::EMRtoVector(emr::EnvironmentModelRepository& emr)
+Nodes ContextManager::EMRtoVector(const emr::EnvironmentModelRepository& emr)
 {
   Nodes nodes;
   std::vector<std::shared_ptr<emr::Node>> root_nodes = emr.getRootNodes();
-  for (auto node : root_nodes)
+  for (const auto& node : root_nodes)
   {
     EMRtoVectorHelper(*node, nodes);
   }
   return nodes;
 }
 
-void ContextManager::EMRtoVectorHelper(emr::Node& currentNode, Nodes& nodes)
+void ContextManager::EMRtoVectorHelper(const emr::Node& currentNode, Nodes& nodes)
 {
   // Create empty container and fill it based on the payload
   NodeContainer nc;
@@ -204,10 +204,10 @@ void ContextManager::EMRtoVectorHelper(emr::Node& currentNode, Nodes& nodes)
 }
 
 template <class Container>
-void ContextManager::addOrUpdateEMRNode(Container & container, std::string container_type)
+void ContextManager::addOrUpdateEMRNode(const Container & container, const std::string& container_type)
 {
   emr::ROSPayload<Container> rospl = emr::ROSPayload<Container>(container);
-  rospl.type = container_type;
+  rospl.setType(container_type);
   std::string name = container.name;
   std::string parent = container.parent;
 
