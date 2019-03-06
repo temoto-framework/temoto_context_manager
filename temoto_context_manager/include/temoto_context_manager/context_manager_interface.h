@@ -66,16 +66,30 @@ public:
   template<class Container>
   Container getEMRContainer(std::string name)
   {
-    try
-    {
-      validateInterface();
+    Container container;
+    if (name == "") {
+      throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL , "The container is missing a name");
     }
-    catch (temoto_core::error::ErrorStack& error_stack)
+    else
     {
-      throw FORWARD_ERROR(error_stack);
+      GetEMRNode srv_msg;
+      srv_msg.request.name = name;
+      srv_msg.request.name = name;
+      if (!get_EMR_node_client_.call<GetEMRNode>(srv_msg)) {
+        throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
+      }
+      if (srv_msg.response.success) 
+      {
+        container = temoto_core::deserializeROSmsg<Container>(
+                                  srv_msg.response.node.serialized_container);
+      }
+      else
+      {
+        TEMOTO_ERROR_STREAM("Invalid EMR type requested for node.");
+      }
     }
-    GetEMRNodes srv_msg;
-    srv_msg.request.name = name;
+    return container;
+    
   }
   int getNumber(const int number)
   {
@@ -250,10 +264,12 @@ public:
       {
         temoto_context_manager::NodeContainer nc;
         // Check the type of the container
-        if (std::is_same<Container, ObjectContainer>::value) {
+        if (std::is_same<Container, ObjectContainer>::value) 
+        {
           nc.type = "OBJECT";
         }
-        else if (std::is_same<Container, MapContainer>::value) {
+        else if (std::is_same<Container, MapContainer>::value) 
+        {
           nc.type = "MAP";
         }
         nc.serialized_container = temoto_core::serializeROSmsg(container);

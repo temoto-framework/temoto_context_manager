@@ -47,6 +47,8 @@ ContextManager::ContextManager()
 
   // "Update EMR" server
   update_emr_server_ = nh_.advertiseService(srv_name::SERVER_UPDATE_EMR, &ContextManager::updateEMRCb, this);
+  // "Get EMR Node" server
+  get_emr_node_server_ = nh_.advertiseService(srv_name::SERVER_GET_EMR_NODE, &ContextManager::getEMRNodeCb, this);
   
   // Request remote EMR configurations
   EMR_syncer_.requestRemoteConfigs();
@@ -203,6 +205,54 @@ void ContextManager::EMRtoVectorHelper(const emr::Node& currentNode, Nodes& node
   }
 }
 
+bool ContextManager::getEMRNode(const std::string& name, std::string type, NodeContainer container)
+{
+  if (env_model_repository_.hasNode(name))
+  {
+    if (type == "OBJECT") 
+    {
+      NodePtr nodeptr = env_model_repository_.getNodeByName(name);
+      if (nodeptr->getPayload()->getType() == "OBJECT") 
+      {
+        ObjectContainer rospl = getContainer<ObjectContainer>(nodeptr);
+        container.serialized_container = temoto_core::serializeROSmsg(rospl);
+        container.type = type;
+        return true;
+      }
+      else
+      {
+        TEMOTO_ERROR_STREAM("Wrong type requested for EMR node with name: " << name << std::endl);
+        TEMOTO_ERROR_STREAM("Requested type: " << type << std::endl);
+        TEMOTO_ERROR_STREAM("Actual type: OBJECT" << std::endl);
+        return false;
+      }
+    }
+    if (type == "MAP") 
+    {
+      NodePtr nodeptr = env_model_repository_.getNodeByName(name);
+      if (nodeptr->getPayload()->getType() == "MAP") 
+      {
+        MapContainer rospl = getContainer<MapContainer>(nodeptr);
+        container.serialized_container = temoto_core::serializeROSmsg(rospl);
+        container.type = type;
+        return true;
+      }
+      else
+      {
+        TEMOTO_ERROR_STREAM("Wrong type requested for EMR node with name: " << name << std::endl);
+        TEMOTO_ERROR_STREAM("Requested type: " << type << std::endl);
+        TEMOTO_ERROR_STREAM("Actual type: MAP " << std::endl);
+        return false;
+      }
+    }
+    TEMOTO_ERROR_STREAM("Wrong container type specified: " << type << std::endl);
+    return false;
+  }
+  TEMOTO_ERROR_STREAM("No node with name " << name << " found in EMR" << std::endl);
+  return false;
+  
+}
+
 template <class Container>
 bool ContextManager::addOrUpdateEMRNode(const Container & container, const std::string& container_type)
 {
@@ -321,6 +371,15 @@ bool ContextManager::updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& r
 
   res.failed_nodes = ContextManager::updateEMR(req.nodes, false);
   
+  return true;
+}
+bool ContextManager::getEMRNodeCb(GetEMRNode::Request& req, GetEMRNode::Response& res)
+{
+  TEMOTO_INFO_STREAM("Received a request to get node: " << req.name << "from the EMR." << std::endl);
+  NodeContainer nc;
+  
+  res.success = ContextManager::getEMRNode(req.name, req.type, nc);
+  res.node = nc;
   return true;
 }
 

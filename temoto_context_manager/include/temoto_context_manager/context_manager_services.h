@@ -8,7 +8,7 @@
 #include "temoto_context_manager/LoadTracker.h"
 #include "temoto_context_manager/TrackObject.h"
 #include "temoto_context_manager/UpdateEMR.h"
-#include "temoto_context_manager/GetEMRNodes.h"
+#include "temoto_context_manager/GetEMRNode.h"
 
 namespace temoto_context_manager
 {

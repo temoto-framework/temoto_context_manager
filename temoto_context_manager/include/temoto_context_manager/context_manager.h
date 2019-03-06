@@ -99,7 +99,27 @@ private:
   
   bool updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& res);
 
+  bool getEMRNodeCb(GetEMRNode::Request& req, GetEMRNode::Response& res);
+
   void trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload);
+
+  template<class Container>
+  Container getContainer(NodePtr nodeptr)
+  {
+    return std::dynamic_pointer_cast<emr::ROSPayload<Container>>
+      (nodeptr->getPayload())
+        ->getPayload();
+  }
+
+  /**
+   * @brief Get node as nodecontainer from EMR
+   * 
+   * @param name 
+   * @param container 
+   * @return true 
+   * @return false 
+   */
+  bool getEMRNode(const std::string& name, std::string type, NodeContainer container);
   /**
    * @brief Update the EMR structure with new information
    * 
@@ -175,6 +195,8 @@ private:
   ros::NodeHandle nh_;
 
   ros::ServiceServer update_emr_server_;
+
+  ros::ServiceServer get_emr_node_server_;
 
   ObjectPtrs objects_;
 
