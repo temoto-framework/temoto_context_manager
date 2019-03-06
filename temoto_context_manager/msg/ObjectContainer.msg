@@ -14,6 +14,9 @@ string[] detection_methods
 string ARTAG = artags
 string HAND = hands
 
+# Name of EMR parent node
+string parent
+
 # Requires the "primitive" field to be filled 
 # string SEGMENT = 2
 

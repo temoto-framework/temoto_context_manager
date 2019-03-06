@@ -27,14 +27,16 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_message_files(FILES 
   ObjectContainer.msg
+  MapContainer.msg
+  NodeContainer.msg
 )
 
 add_service_files(
   FILES
   GetNumber.srv
   LoadTracker.srv
-  AddObjects.srv
   TrackObject.srv
+  UpdateEMR.srv
 )
 
 generate_messages(
@@ -64,6 +66,7 @@ add_executable(temoto_context_manager
   src/context_manager_node.cpp
   src/context_manager.cpp
   src/context_manager_containers.cpp
+  src/env_model_repository.cpp
 )
 
 add_dependencies(temoto_context_manager

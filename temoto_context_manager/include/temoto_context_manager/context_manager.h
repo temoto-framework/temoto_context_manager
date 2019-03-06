@@ -10,6 +10,7 @@
 #include "temoto_context_manager/context_manager_containers.h"
 #include "temoto_context_manager/tracking_method.h"
 #include "temoto_context_manager/context_manager_services.h"
+#include "temoto_context_manager/env_model_repository.h"
 
 #include "temoto_nlp/task_manager.h"
 #include "temoto_component_manager/component_manager_services.h"
@@ -77,20 +78,57 @@ private:
    */
   void parseTrackers(std::string config_path);
 
-  /**
-   * @brief addObjectCb
-   * @param req
-   * @param res
-   */
-  bool addObjectsCb(AddObjects::Request& req, AddObjects::Response& res);
-
-  void objectSyncCb(const temoto_core::ConfigSync& msg, const Objects& payload);
+  void EMRSyncCb(const temoto_core::ConfigSync& msg, const Nodes& payload);
+  
+  bool updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& res);
 
   void trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload);
+  /**
+   * @brief Update the EMR structure with new information
+   * 
+   * @param nodes_to_add 
+   * @param from_other_manager 
+   */
+  void updateEMR(const Nodes & nodes_to_add, bool from_other_manager);
 
-  void advertiseAllObjects();
+  /**
+   * @brief Debug function to traverse through EMR tree 
+   * 
+   * @param root 
+   */
+  void traverseEMR(const emr::Node& root);
+  
+  /**
+   * @brief Add or update a single node of the EMR
+   * 
+   * @tparam Container 
+   * @param container 
+   * @param container_type 
+   */
+  template <class Container>
+  void addOrUpdateEMRNode(const Container & container, const std::string& container_type);
 
-  void addOrUpdateObjects(const Objects& objects_to_add, bool from_other_manager);
+  /**
+   * @brief Advertise the EMR state through the config syncer
+   * 
+   */
+  void advertiseEMR();
+
+  /**
+   * @brief Save the EMR state as a NodeContainer vector
+   * 
+   * @param emr 
+   * @return Nodes 
+   */
+  Nodes EMRtoVector(const emr::EnvironmentModelRepository& emr);
+
+  /**
+   * @brief Recursive helper function to save EMR state
+   * 
+   * @param currentNode 
+   * @param nodes 
+   */
+  void EMRtoVectorHelper(const emr::Node& currentNode, Nodes& nodes);
 
   ObjectPtr findObject(std::string object_name);
 
@@ -118,7 +156,7 @@ private:
 
   ros::NodeHandle nh_;
 
-  ros::ServiceServer add_objects_server_;
+  ros::ServiceServer update_emr_server_;
 
   ObjectPtrs objects_;
 
@@ -130,11 +168,13 @@ private:
 
   std::map<int, TrackerInfoPtr> allocated_trackers_;
 
+  emr::EnvironmentModelRepository env_model_repository_;
+
   temoto_core::temoto_id::IDManager pipe_id_generator_;
 
   // Configuration syncer that manages external resource descriptions and synchronizes them
   // between all other (context) managers
-  temoto_core::rmp::ConfigSynchronizer<ContextManager, Objects> object_syncer_;
+  temoto_core::rmp::ConfigSynchronizer<ContextManager, Nodes> EMR_syncer_;
 
   temoto_core::rmp::ConfigSynchronizer<ContextManager, std::string> tracked_objects_syncer_;
 
