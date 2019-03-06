@@ -311,6 +311,7 @@ ObjectPtr ContextManager::findObject(std::string object_name)
  */
 bool ContextManager::updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& res)
 {
+  (void)res; // Suppress "unused variable" compiler warnings
   TEMOTO_INFO("Received a request to add %ld node(s) to the EMR.", req.nodes.size());
 
   ContextManager::updateEMR(req.nodes, false);
@@ -868,6 +869,8 @@ void ContextManager::loadTrackerCb(LoadTracker::Request& req,
  */
 void ContextManager::unloadTrackerCb(LoadTracker::Request& req, LoadTracker::Response& res)
 {
+  (void)req; // Suppress "unused variable" compiler warnings
+
   // Remove the tracker from the list of allocated trackers
   auto it = allocated_trackers_hack_.find(res.rmp.resource_id);
   if (it != allocated_trackers_hack_.end())
