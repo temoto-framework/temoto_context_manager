@@ -39,6 +39,7 @@ add_service_files(
   LoadSpeech.srv
   TrackObject.srv
   UpdateEMR.srv
+  GetEMRNodes.srv
 )
 
 generate_messages(

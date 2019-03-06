@@ -56,7 +56,27 @@ public:
     // Add EMR service client
     update_EMR_client_ = nh_.serviceClient<UpdateEMR>(srv_name::SERVER_UPDATE_EMR);
   }
-
+  /**
+   * @brief Get a container from the EMR
+   * 
+   * @tparam Container 
+   * @param name 
+   * @return Container 
+   */
+  template<class Container>
+  Container getEMRContainer(std::string name)
+  {
+    try
+    {
+      validateInterface();
+    }
+    catch (temoto_core::error::ErrorStack& error_stack)
+    {
+      throw FORWARD_ERROR(error_stack);
+    }
+    GetEMRNodes srv_msg;
+    srv_msg.request.name = name;
+  }
   int getNumber(const int number)
   {
     try
@@ -247,15 +267,20 @@ public:
     if (!update_EMR_client_.call<UpdateEMR>(update_EMR_srvmsg)) {
       throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
     }
-
-    // Check the response code
-    // TODO: First of all, transfer the RMP members straight to the request part.
-    //       Then, instead of checkin the code, check the error stack.
-    if (update_EMR_srvmsg.response.rmp.code != 0)
+    for (auto node_container : update_EMR_srvmsg.response.failed_nodes)
     {
-      throw FORWARD_ERROR(update_EMR_srvmsg.response.rmp.error_stack);
+      if (node_container.type == "OBJECT") {
+        auto container = temoto_core::deserializeROSmsg<ObjectContainer>
+                                (node_container.serialized_container);
+        TEMOTO_INFO_STREAM("Failed to add node: " << container.name << std::endl);
+      }
+      else if (node_container.type == "MAP")
+      {
+        auto container = temoto_core::deserializeROSmsg<ObjectContainer>
+                                (node_container.serialized_container);
+        TEMOTO_INFO_STREAM("Failed to add node: " << container.name << std::endl);
+      }
     }
-    
   }
 
   /**
@@ -427,6 +452,7 @@ private:
   ros::NodeHandle nh_;
   ros::Subscriber speech_subscriber_;
   ros::ServiceClient update_EMR_client_;
+  ros::ServiceClient get_EMR_node_client_;
 
   std::vector<LoadSpeech> allocated_speeches_;
   std::vector<LoadTracker> allocated_trackers_;
