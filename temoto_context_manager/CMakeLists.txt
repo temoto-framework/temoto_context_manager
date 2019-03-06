@@ -26,7 +26,6 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 add_message_files(FILES 
-  SpeechSpecifier.msg
   ObjectContainer.msg
 )
 
@@ -34,7 +33,6 @@ add_service_files(
   FILES
   GetNumber.srv
   LoadTracker.srv
-  LoadSpeech.srv
   AddObjects.srv
   TrackObject.srv
 )

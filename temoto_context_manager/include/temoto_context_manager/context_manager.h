@@ -78,23 +78,6 @@ private:
   void parseTrackers(std::string config_path);
 
   /**
-   * @brief Service that sets up a speech publisher
-   * @param A gesture specifier message
-   * @param Returns a topic where the requested gesture messages
-   * are going to be published
-   * @return
-   */
-  void loadSpeechCb(LoadSpeech::Request& req, LoadSpeech::Response& res);
-
-  /**
-   * @brief Unload Callback for speech
-   * @param LoadSpeech request message
-   * @param LoadSpeech response message
-   * @return
-   */
-  void unloadSpeechCb(LoadSpeech::Request& req, LoadSpeech::Response& res);
-
-  /**
    * @brief addObjectCb
    * @param req
    * @param res

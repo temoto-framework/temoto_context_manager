@@ -20,15 +20,10 @@ ContextManager::ContextManager()
    * Start the servers
    */
 
-  // Speech recognition service
+  // TODO: This is just an example service
   resource_manager_1_.addServer<GetNumber>( srv_name::GET_NUMBER_SERVER
                                                     , &ContextManager::loadGetNumberCb
                                                     , &ContextManager::unloadGetNumberCb);
-
-  // Speech recognition service
-  resource_manager_1_.addServer<LoadSpeech>(srv_name::SPEECH_SERVER
-                                                    , &ContextManager::loadSpeechCb
-                                                    , &ContextManager::unloadSpeechCb);
 
   // Object tracking service
   resource_manager_1_.addServer<TrackObject>(srv_name::TRACK_OBJECT_SERVER
@@ -90,6 +85,7 @@ void ContextManager::loadGetNumberCb( GetNumber::Request& req
 void ContextManager::unloadGetNumberCb( GetNumber::Request& req
                                       , GetNumber::Response& res)
 {
+  (void)res; // Suppress "unused parameter" compiler warnings
   TEMOTO_INFO_STREAM("Received a request to UNload number '" << req.requested_int << "'");
 }
 
@@ -846,46 +842,11 @@ void ContextManager::parseTrackers(std::string config_path)
 }
 
 /*
- * TODO: use the generic tracker service
- */
-void ContextManager::loadSpeechCb(LoadSpeech::Request& req,
-                                  LoadSpeech::Response& res)
-{
-  TEMOTO_INFO("Speech requested.");
-  TEMOTO_DEBUG("Using hardcoded specifiers[0]");
-
-  temoto_component_manager::LoadComponent msg;
-  msg.request.component_type = req.speech_specifiers[0].type;
-
-  // Request a speech sensor from the Sensor Manager
-  try
-  {
-    resource_manager_1_.call<temoto_component_manager::LoadComponent>(temoto_component_manager::srv_name::MANAGER,
-                                                                      temoto_component_manager::srv_name::SERVER,
-                                                                      msg);
-
-    TEMOTO_DEBUG("Got a response: '%s'", msg.response.rmp.message.c_str());
-    res.package_name = msg.response.package_name;
-    res.executable = msg.response.executable;
-    res.topic = msg.response.output_topics.at(0).value; // TODO deprecated
-  }
-  catch (temoto_core::error::ErrorStack& error_stack)
-  {
-    throw FORWARD_ERROR(error_stack);
-  }
-}
-
-void ContextManager::unloadSpeechCb(LoadSpeech::Request& req,
-                                    LoadSpeech::Response& res)
-{
-  TEMOTO_INFO("Speech unloaded.");
-}
-
-/*
  * Status callback 1
  */
 void ContextManager::statusCb1(temoto_core::ResourceStatus& srv)
 {
+  (void)srv; // Suppress "unused parameter" compiler warnings
   /* TODO */
 }
 

@@ -22,8 +22,6 @@ class ContextManagerInterface : public temoto_core::BaseSubsystem
 {
 public:
 
-  typedef void (OwnerTask::*SpeechCallbackType)(std_msgs::String);
-
   ContextManagerInterface()
   {
     class_name_ = __func__;
@@ -83,44 +81,6 @@ public:
     }
 
     return srv_msg.response.responded_int;
-  }
-
-  void getSpeech(std::vector<SpeechSpecifier> speech_specifiers, SpeechCallbackType callback, OwnerTask* obj)
-  {
-    try
-    {
-      validateInterface();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
-    task_speech_cb_ = callback;
-    task_speech_obj_ = obj;
-
-    // Contact the "Context Manager", pass the speech specifier and if successful, get
-    // the name of the topic
-
-    LoadSpeech srv_msg;
-    srv_msg.request.speech_specifiers = speech_specifiers;
-
-    // Call the server
-    try
-    {
-      resource_manager_->template call<LoadSpeech>( srv_name::MANAGER
-                                                            , srv_name::SPEECH_SERVER
-                                                            , srv_msg);
-      allocated_speeches_.push_back(srv_msg);
-    }
-    catch(temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
-    // Subscribe to the topic that was provided by the "Context Manager"
-    TEMOTO_DEBUG("subscribing to topic'%s'", srv_msg.response.topic.c_str());
-    speech_subscriber_ = nh_.subscribe(srv_msg.response.topic, 1000, task_speech_cb_, task_speech_obj_);
   }
 
   /**
@@ -264,7 +224,6 @@ public:
     {
       // remove all connections, which were created via call() function
       resource_manager_->unloadClients();
-      allocated_speeches_.clear();
     }
     catch (temoto_core::error::ErrorStack& error_stack)
     {
@@ -292,11 +251,6 @@ public:
     {
       TEMOTO_WARN("Received a notification about a resource failure. Unloading and trying again");
 
-      auto speech_it = std::find_if(allocated_speeches_.begin(), allocated_speeches_.end(),
-                                  [&](const LoadSpeech& sens) -> bool {
-                                    return sens.response.rmp.resource_id == srv.request.resource_id;
-                                  });
-
       auto tracker_it = std::find_if(allocated_trackers_.begin(), allocated_trackers_.end(),
                                   [&](const LoadTracker& sens) -> bool {
                                     return sens.response.rmp.resource_id == srv.request.resource_id;
@@ -307,31 +261,8 @@ public:
                                     return sens.response.rmp.resource_id == srv.request.resource_id;
                                   });
 
-      if (speech_it != allocated_speeches_.end())
-      {
-        try
-        {
-          TEMOTO_DEBUG("Unloading speech");
-          resource_manager_->unloadClientResource(speech_it->response.rmp.resource_id);
-          TEMOTO_DEBUG("Asking the same speech again");
-          resource_manager_->template call<LoadSpeech>(
-              srv_name::MANAGER, srv_name::SPEECH_SERVER,
-              *speech_it);
-        }
-        catch(temoto_core::error::ErrorStack& error_stack)
-        {
-          throw FORWARD_ERROR(error_stack);
-        }
-
-        // Replace subscriber
-        TEMOTO_DEBUG("Replacing subscriber new topic'%s'",
-                 speech_it->response.topic.c_str());
-        speech_subscriber_.shutdown();
-        speech_subscriber_ = nh_.subscribe(speech_it->response.topic, 1000, task_speech_cb_, task_speech_obj_);
-      }
-
       // If the tracker was found then ...
-      else if (tracker_it != allocated_trackers_.end())
+      if (tracker_it != allocated_trackers_.end())
       {
         try
         {
@@ -380,8 +311,7 @@ public:
         }
       }
 
-      if (speech_it != allocated_speeches_.end() &&
-          tracker_it != allocated_trackers_.end() &&
+      if (tracker_it != allocated_trackers_.end() &&
           track_object_it != allocated_track_objects_.end())
       {
         throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND, "Got resource_id that is not registered in this interface.");
@@ -399,22 +329,14 @@ public:
 
 private:
 
-  SpeechCallbackType task_speech_cb_;
-
-  //TODO: Currently task is able to give callback functions which are only bind to itself.
-  // arbitrary objects should be allowed in future.
-  OwnerTask* task_speech_obj_;
-  
   std::unique_ptr<temoto_core::rmp::ResourceManager<ContextManagerInterface>> resource_manager_;
 
   std::string name_; 
   temoto_nlp::BaseTask* task_;
 
   ros::NodeHandle nh_;
-  ros::Subscriber speech_subscriber_;
   ros::ServiceClient add_object_client_;
 
-  std::vector<LoadSpeech> allocated_speeches_;
   std::vector<LoadTracker> allocated_trackers_;
   std::vector<TrackObject> allocated_track_objects_;
 
