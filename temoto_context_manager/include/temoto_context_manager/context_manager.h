@@ -148,10 +148,7 @@ private:
 
   ros::ServiceServer update_emr_server_;
 
-<<<<<<< HEAD
-=======
   ros::ServiceServer get_emr_node_server_;
->>>>>>> emr-devel
 
   ObjectPtrs objects_;
 
