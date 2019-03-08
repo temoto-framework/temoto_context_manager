@@ -41,6 +41,15 @@ private:
   void trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload);
 
   /**
+   * @brief Get node as nodecontainer from EMR
+   * 
+   * @param name 
+   * @param container 
+   * @return true 
+   * @return false 
+   */
+  bool getEMRNode(const std::string& name, std::string type, NodeContainer& container);
+  /**
    * @brief Update the EMR structure with new information
    * 
    * @param items_to_add 

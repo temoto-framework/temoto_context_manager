@@ -53,6 +53,52 @@ public:
 
     // Add EMR service client
     update_EMR_client_ = nh_.serviceClient<UpdateEmr>(srv_name::SERVER_UPDATE_EMR);
+    get_EMR_node_client_ = nh_.serviceClient<GetEMRNode>(srv_name::SERVER_GET_EMR_NODE);
+  }
+  /**
+   * @brief Get a container from the EMR
+   * 
+   * @tparam Container 
+   * @param name 
+   * @return Container 
+   */
+  template<class Container>
+  Container getEMRContainer(std::string name)
+  {
+    Container container;
+    if (name == "") 
+    {
+      throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL , "The container is missing a name");
+    }
+    else
+    {
+      GetEMRNode srv_msg;
+      srv_msg.request.name = name;
+      if (std::is_same<Container, ObjectContainer>::value) 
+      {
+        srv_msg.request.type = "OBJECT";
+      }
+      else if (std::is_same<Container, MapContainer>::value) 
+      {
+        srv_msg.request.type = "MAP";
+      }
+      if (!get_EMR_node_client_.call<GetEMRNode>(srv_msg)) {
+        throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
+      }
+      TEMOTO_INFO("Got a response! ");
+      if (srv_msg.response.success) 
+      {
+        container = temoto_core::deserializeROSmsg<Container>(
+                                  srv_msg.response.node.serialized_container);
+        TEMOTO_INFO("Got a response! ");
+      }
+      else
+      {
+        TEMOTO_ERROR_STREAM("Invalid EMR type requested for node.");
+      }
+    }
+    return container;
+    
   }
 
   int getNumber(const int number)
