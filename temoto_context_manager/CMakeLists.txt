@@ -26,7 +26,6 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 add_message_files(FILES 
-  SpeechSpecifier.msg
   ObjectContainer.msg
   MapContainer.msg
   NodeContainer.msg
@@ -36,7 +35,6 @@ add_service_files(
   FILES
   GetNumber.srv
   LoadTracker.srv
-  LoadSpeech.srv
   TrackObject.srv
   UpdateEMR.srv
   GetEMRNode.srv
