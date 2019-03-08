@@ -34,7 +34,6 @@ add_message_files(FILES
 add_service_files(
   FILES
   GetNumber.srv
-  LoadTracker.srv
   TrackObject.srv
   UpdateEMR.srv
 )

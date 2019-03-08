@@ -85,45 +85,6 @@ public:
     return srv_msg.response.responded_int;
   }
 
-  /**
-   * @brief startTracker
-   * @param tracker_category
-   * @return
-   */
-  temoto_core::TopicContainer startTracker(std::string tracker_category)
-  {
-    // Validate the interface
-    try
-    {
-      validateInterface();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
-    // Start filling out the LoadTracker message
-    LoadTracker load_tracker_msg;
-    load_tracker_msg.request.tracker_category = tracker_category;
-
-    try
-    {
-      resource_manager_->template call<LoadTracker>(srv_name::MANAGER_2,
-                                                              srv_name::TRACKER_SERVER,
-                                                              load_tracker_msg);
-      allocated_trackers_.push_back(load_tracker_msg);
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
-    temoto_core::TopicContainer topics_to_return;
-    topics_to_return.setOutputTopicsByKeyValue(load_tracker_msg.response.output_topics);
-
-    return topics_to_return;
-  }
-
   std::string trackObject(std::string object_name)
   {
     // Validate the interface
@@ -265,47 +226,13 @@ public:
     {
       TEMOTO_WARN("Received a notification about a resource failure. Unloading and trying again");
 
-      auto tracker_it = std::find_if(allocated_trackers_.begin(), allocated_trackers_.end(),
-                                  [&](const LoadTracker& sens) -> bool {
-                                    return sens.response.rmp.resource_id == srv.request.resource_id;
-                                  });
-
       auto track_object_it = std::find_if(allocated_track_objects_.begin(), allocated_track_objects_.end(),
                                   [&](const TrackObject& sens) -> bool {
                                     return sens.response.rmp.resource_id == srv.request.resource_id;
                                   });
 
       // If the tracker was found then ...
-      if (tracker_it != allocated_trackers_.end())
-      {
-        try
-        {
-          // ... unload it and ...
-          TEMOTO_DEBUG("Unloading the tracker");
-          resource_manager_->unloadClientResource(tracker_it->response.rmp.resource_id);
-
-          // ... copy the output topics from the response into the output topics
-          // of the request (since the user still wants to receive the data on the same topics) ...
-          tracker_it->request.output_topics = tracker_it->response.output_topics;
-          tracker_it->request.pipe_id = tracker_it->response.pipe_id;
-
-          // ... and load an alternative tracker. This call automatically
-          // updates the response in allocated trackers vector
-
-          TEMOTO_DEBUG_STREAM("Trying to load an alternative tracker");
-
-          resource_manager_->template call<LoadTracker>(srv_name::MANAGER_2,
-                                                                  srv_name::TRACKER_SERVER,
-                                                                  *tracker_it);
-        }
-        catch(temoto_core::error::ErrorStack& error_stack)
-        {
-          throw FORWARD_ERROR(error_stack);
-        }
-      }
-
-      // If the tracker was found then ...
-      else if (track_object_it != allocated_track_objects_.end())
+      if (track_object_it != allocated_track_objects_.end())
       {
         try
         {
@@ -325,8 +252,7 @@ public:
         }
       }
 
-      if (tracker_it != allocated_trackers_.end() &&
-          track_object_it != allocated_track_objects_.end())
+      if (track_object_it != allocated_track_objects_.end())
       {
         throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND, "Got resource_id that is not registered in this interface.");
       }
@@ -351,7 +277,6 @@ private:
   ros::NodeHandle nh_;
   ros::ServiceClient update_EMR_client_;
 
-  std::vector<LoadTracker> allocated_trackers_;
   std::vector<TrackObject> allocated_track_objects_;
 
   /**

@@ -4,7 +4,6 @@
 #include <string>
 #include "temoto_core/rmp/resource_manager_services.h"
 #include "temoto_context_manager/GetNumber.h"
-#include "temoto_context_manager/LoadTracker.h"
 #include "temoto_context_manager/TrackObject.h"
 #include "temoto_context_manager/UpdateEMR.h"
 
@@ -29,18 +28,6 @@ static bool operator==(const temoto_context_manager::GetNumber::Request& r1,
                        const temoto_context_manager::GetNumber::Request& r2)
 {
   return( r1.requested_int == r2.requested_int);
-}
-
-/**
- * @brief operator ==
- * @param r1
- * @param r2
- * @return
- */
-static bool operator==(const temoto_context_manager::LoadTracker::Request& r1,
-                       const temoto_context_manager::LoadTracker::Request& r2)
-{
-  return( r1.detection_method == r2.detection_method);
 }
 
 /**
