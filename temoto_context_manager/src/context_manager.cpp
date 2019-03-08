@@ -325,6 +325,7 @@ Nodes ContextManager::updateEMR(const Nodes& nodes_to_add, bool from_other_manag
     TEMOTO_INFO("Advertising EMR to other namespaces.");
     advertiseEMR(); 
   }
+  return failed_nodes;
 }
 
 /*
@@ -335,13 +336,11 @@ void ContextManager::advertiseEMR()
 {
   // Publish all nodes 
   Nodes nodes_payload = EMRtoVector(env_model_repository_);
-
   // If there is something to send, advertise.
   if (nodes_payload.size()) 
   {
     EMR_syncer_.advertise(nodes_payload);
   }
-  
 }
 
 /*
@@ -370,7 +369,6 @@ bool ContextManager::updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& r
   TEMOTO_INFO("Received a request to add %ld node(s) to the EMR.", req.nodes.size());
 
   res.failed_nodes = ContextManager::updateEMR(req.nodes, false);
-  
   return true;
 }
 bool ContextManager::getEMRNodeCb(GetEMRNode::Request& req, GetEMRNode::Response& res)

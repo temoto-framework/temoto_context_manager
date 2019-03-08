@@ -25,7 +25,7 @@ namespace temoto_context_manager
     const std::string TRACKER_SERVER = "load_tracker";
 
     const std::string SERVER_UPDATE_EMR = "update_emr";
-    const std::string SERVER_GET_EMR_NODE = "update_emr";
+    const std::string SERVER_GET_EMR_NODE = "get_emr_node";
   }
 }
 

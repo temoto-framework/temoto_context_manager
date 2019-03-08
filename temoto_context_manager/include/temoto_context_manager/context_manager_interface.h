@@ -55,6 +55,7 @@ public:
 
     // Add EMR service client
     update_EMR_client_ = nh_.serviceClient<UpdateEMR>(srv_name::SERVER_UPDATE_EMR);
+    get_EMR_node_client_ = nh_.serviceClient<GetEMRNode>(srv_name::SERVER_GET_EMR_NODE);
   }
   /**
    * @brief Get a container from the EMR
@@ -74,7 +75,14 @@ public:
     {
       GetEMRNode srv_msg;
       srv_msg.request.name = name;
-      srv_msg.request.name = name;
+      if (std::is_same<Container, ObjectContainer>::value) 
+      {
+        srv_msg.request.type = "OBJECT";
+      }
+      else if (std::is_same<Container, MapContainer>::value) 
+      {
+        srv_msg.request.type = "MAP";
+      }
       if (!get_EMR_node_client_.call<GetEMRNode>(srv_msg)) {
         throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
       }
@@ -280,7 +288,8 @@ public:
     UpdateEMR update_EMR_srvmsg;
     update_EMR_srvmsg.request.nodes = node_containers;
 
-    if (!update_EMR_client_.call<UpdateEMR>(update_EMR_srvmsg)) {
+    if (!update_EMR_client_.call<UpdateEMR>(update_EMR_srvmsg)) 
+    {
       throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
     }
     for (auto node_container : update_EMR_srvmsg.response.failed_nodes)
@@ -297,6 +306,7 @@ public:
         TEMOTO_INFO_STREAM("Failed to add node: " << container.name << std::endl);
       }
     }
+    TEMOTO_ERROR_STREAM("Kõik on haigelt hästi");
   }
 
   /**
