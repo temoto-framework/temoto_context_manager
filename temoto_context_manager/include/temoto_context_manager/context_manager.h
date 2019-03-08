@@ -51,14 +51,35 @@ private:
   
   bool updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& res);
 
+  bool getEMRNodeCb(GetEMRNode::Request& req, GetEMRNode::Response& res);
+
   void trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload);
+
+  template<class Container>
+  Container getContainer(NodePtr nodeptr)
+  {
+    return std::dynamic_pointer_cast<emr::ROSPayload<Container>>
+      (nodeptr->getPayload())
+        ->getPayload();
+  }
+
+  /**
+   * @brief Get node as nodecontainer from EMR
+   * 
+   * @param name 
+   * @param container 
+   * @return true 
+   * @return false 
+   */
+  bool getEMRNode(const std::string& name, std::string type, NodeContainer& container);
   /**
    * @brief Update the EMR structure with new information
    * 
    * @param nodes_to_add 
    * @param from_other_manager 
+   * @return Nodes that could not be added
    */
-  void updateEMR(const Nodes & nodes_to_add, bool from_other_manager);
+  Nodes updateEMR(const Nodes & nodes_to_add, bool from_other_manager);
 
   /**
    * @brief Debug function to traverse through EMR tree 
@@ -75,7 +96,7 @@ private:
    * @param container_type 
    */
   template <class Container>
-  void addOrUpdateEMRNode(const Container & container, const std::string& container_type);
+  bool addOrUpdateEMRNode(const Container & container, const std::string& container_type);
 
   /**
    * @brief Advertise the EMR state through the config syncer
@@ -127,6 +148,10 @@ private:
 
   ros::ServiceServer update_emr_server_;
 
+<<<<<<< HEAD
+=======
+  ros::ServiceServer get_emr_node_server_;
+>>>>>>> emr-devel
 
   ObjectPtrs objects_;
 

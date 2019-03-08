@@ -2,4 +2,5 @@ temoto_context_manager/NodeContainer[] nodes
 
 ---
 
-temoto_core/RMPResponse rmp
+# Was the update successful
+temoto_context_manager/NodeContainer[] failed_nodes

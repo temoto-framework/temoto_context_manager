@@ -6,6 +6,7 @@
 #include "temoto_context_manager/GetNumber.h"
 #include "temoto_context_manager/TrackObject.h"
 #include "temoto_context_manager/UpdateEMR.h"
+#include "temoto_context_manager/GetEMRNode.h"
 
 namespace temoto_context_manager
 {
@@ -21,6 +22,7 @@ namespace temoto_context_manager
     const std::string TRACKER_SERVER = "load_tracker";
 
     const std::string SERVER_UPDATE_EMR = "update_emr";
+    const std::string SERVER_GET_EMR_NODE = "get_emr_node";
   }
 }
 

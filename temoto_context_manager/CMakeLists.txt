@@ -36,6 +36,7 @@ add_service_files(
   GetNumber.srv
   TrackObject.srv
   UpdateEMR.srv
+  GetEMRNode.srv
 )
 
 generate_messages(

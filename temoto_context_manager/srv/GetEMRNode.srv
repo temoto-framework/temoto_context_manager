@@ -1,0 +1,9 @@
+# Name of node we need
+string name
+string type
+
+---
+
+temoto_context_manager/NodeContainer node
+
+bool success

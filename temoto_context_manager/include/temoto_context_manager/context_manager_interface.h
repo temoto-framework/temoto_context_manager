@@ -53,8 +53,53 @@ public:
 
     // Add EMR service client
     update_EMR_client_ = nh_.serviceClient<UpdateEMR>(srv_name::SERVER_UPDATE_EMR);
+    get_EMR_node_client_ = nh_.serviceClient<GetEMRNode>(srv_name::SERVER_GET_EMR_NODE);
   }
-
+  /**
+   * @brief Get a container from the EMR
+   * 
+   * @tparam Container 
+   * @param name 
+   * @return Container 
+   */
+  template<class Container>
+  Container getEMRContainer(std::string name)
+  {
+    Container container;
+    if (name == "") 
+    {
+      throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL , "The container is missing a name");
+    }
+    else
+    {
+      GetEMRNode srv_msg;
+      srv_msg.request.name = name;
+      if (std::is_same<Container, ObjectContainer>::value) 
+      {
+        srv_msg.request.type = "OBJECT";
+      }
+      else if (std::is_same<Container, MapContainer>::value) 
+      {
+        srv_msg.request.type = "MAP";
+      }
+      if (!get_EMR_node_client_.call<GetEMRNode>(srv_msg)) {
+        throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
+      }
+      TEMOTO_INFO("Got a response! ");
+      if (srv_msg.response.success) 
+      {
+        container = temoto_core::deserializeROSmsg<Container>(
+                                  srv_msg.response.node.serialized_container);
+        TEMOTO_INFO("Got a response! ");
+      }
+      else
+      {
+        TEMOTO_ERROR_STREAM("Invalid EMR type requested for node.");
+      }
+    }
+    return container;
+    
+  }
   int getNumber(const int number)
   {
     try
@@ -151,10 +196,12 @@ public:
       {
         temoto_context_manager::NodeContainer nc;
         // Check the type of the container
-        if (std::is_same<Container, ObjectContainer>::value) {
+        if (std::is_same<Container, ObjectContainer>::value) 
+        {
           nc.type = "OBJECT";
         }
-        else if (std::is_same<Container, MapContainer>::value) {
+        else if (std::is_same<Container, MapContainer>::value) 
+        {
           nc.type = "MAP";
         }
         nc.serialized_container = temoto_core::serializeROSmsg(container);
@@ -165,18 +212,24 @@ public:
     UpdateEMR update_EMR_srvmsg;
     update_EMR_srvmsg.request.nodes = node_containers;
 
-    if (!update_EMR_client_.call<UpdateEMR>(update_EMR_srvmsg)) {
+    if (!update_EMR_client_.call<UpdateEMR>(update_EMR_srvmsg)) 
+    {
       throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
     }
-
-    // Check the response code
-    // TODO: First of all, transfer the RMP members straight to the request part.
-    //       Then, instead of checkin the code, check the error stack.
-    if (update_EMR_srvmsg.response.rmp.code != 0)
+    for (auto node_container : update_EMR_srvmsg.response.failed_nodes)
     {
-      throw FORWARD_ERROR(update_EMR_srvmsg.response.rmp.error_stack);
+      if (node_container.type == "OBJECT") {
+        auto container = temoto_core::deserializeROSmsg<ObjectContainer>
+                                (node_container.serialized_container);
+        TEMOTO_INFO_STREAM("Failed to add node: " << container.name << std::endl);
+      }
+      else if (node_container.type == "MAP")
+      {
+        auto container = temoto_core::deserializeROSmsg<ObjectContainer>
+                                (node_container.serialized_container);
+        TEMOTO_INFO_STREAM("Failed to add node: " << container.name << std::endl);
+      }
     }
-    
   }
 
   /**
@@ -276,6 +329,7 @@ private:
 
   ros::NodeHandle nh_;
   ros::ServiceClient update_EMR_client_;
+  ros::ServiceClient get_EMR_node_client_;
 
   std::vector<TrackObject> allocated_track_objects_;
 
