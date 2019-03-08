@@ -201,7 +201,7 @@ void ContextManager::EMRtoVectorHelper(const emr::Node& currentNode, Nodes& node
   }
 }
 
-bool ContextManager::getEMRNode(const std::string& name, std::string type, NodeContainer container)
+bool ContextManager::getEMRNode(const std::string& name, std::string type, NodeContainer& container)
 {
   if (env_model_repository_.hasNode(name))
   {
@@ -213,6 +213,7 @@ bool ContextManager::getEMRNode(const std::string& name, std::string type, NodeC
         ObjectContainer rospl = getContainer<ObjectContainer>(nodeptr);
         container.serialized_container = temoto_core::serializeROSmsg(rospl);
         container.type = type;
+        TEMOTO_WARN_STREAM("Found object");
         return true;
       }
       else
@@ -223,7 +224,7 @@ bool ContextManager::getEMRNode(const std::string& name, std::string type, NodeC
         return false;
       }
     }
-    if (type == "MAP") 
+    else if (type == "MAP") 
     {
       NodePtr nodeptr = env_model_repository_.getNodeByName(name);
       if (nodeptr->getPayload()->getType() == "MAP") 
@@ -241,8 +242,11 @@ bool ContextManager::getEMRNode(const std::string& name, std::string type, NodeC
         return false;
       }
     }
-    TEMOTO_ERROR_STREAM("Wrong container type specified: " << type << std::endl);
-    return false;
+    else
+    {
+      TEMOTO_ERROR_STREAM("Wrong container type specified: " << type << std::endl);
+      return false;
+    }
   }
   TEMOTO_ERROR_STREAM("No node with name " << name << " found in EMR" << std::endl);
   return false;
@@ -375,6 +379,7 @@ bool ContextManager::getEMRNodeCb(GetEMRNode::Request& req, GetEMRNode::Response
   
   res.success = ContextManager::getEMRNode(req.name, req.type, nc);
   res.node = nc;
+  TEMOTO_WARN_STREAM("t1 " << res.success);
   return true;
 }
 

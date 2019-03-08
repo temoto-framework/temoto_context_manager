@@ -66,7 +66,8 @@ public:
   Container getEMRContainer(std::string name)
   {
     Container container;
-    if (name == "") {
+    if (name == "") 
+    {
       throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL , "The container is missing a name");
     }
     else
@@ -84,10 +85,12 @@ public:
       if (!get_EMR_node_client_.call<GetEMRNode>(srv_msg)) {
         throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
       }
+      TEMOTO_INFO("Got a response! ");
       if (srv_msg.response.success) 
       {
         container = temoto_core::deserializeROSmsg<Container>(
                                   srv_msg.response.node.serialized_container);
+        TEMOTO_INFO("Got a response! ");
       }
       else
       {
@@ -266,7 +269,6 @@ public:
         TEMOTO_INFO_STREAM("Failed to add node: " << container.name << std::endl);
       }
     }
-    TEMOTO_ERROR_STREAM("Kõik on haigelt hästi");
   }
 
   /**

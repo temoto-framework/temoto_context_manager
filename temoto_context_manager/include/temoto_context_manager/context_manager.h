@@ -102,7 +102,7 @@ private:
    * @return true 
    * @return false 
    */
-  bool getEMRNode(const std::string& name, std::string type, NodeContainer container);
+  bool getEMRNode(const std::string& name, std::string type, NodeContainer& container);
   /**
    * @brief Update the EMR structure with new information
    * 
