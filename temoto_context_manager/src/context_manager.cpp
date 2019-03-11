@@ -400,21 +400,18 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     TEMOTO_INFO_STREAM("The requested object is known");
 
     /*
-     * Start a tracker that can be used to detect the requested object
+     * Start a pipe that provides the raw data for tracking the requested object
      */
     temoto_component_manager::LoadPipe load_pipe_msg;
     addDetectionMethods(requested_object->detection_methods);
     std::vector<std::string> detection_methods = getOrderedDetectionMethods();
 
-    for (auto dm : detection_methods)
-    {
-      std::cout << dm << " !!!!!!!!!!!!!!!! " << std::endl;
-    }
-
     std::string selected_pipe;
 
-    // Loop over different tracker categories and try to load one. The loop is iterated either until
-    // a tracker is succesfully loaded or options are exhausted (failure)
+    /*
+     * Loop over different pipe categories and try to load one. The loop is iterated either until
+     * a pipe is succesfully loaded or options are exhausted (failure)
+     */
     for (auto& pipe_category : detection_methods)
     {
       try
@@ -438,20 +435,22 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
       {
         detection_method_history_[pipe_category].adjustReliability(0);
 
-        // If a requested tracker was not found but there are other options
+        // If the requested pipe was not found but there are other options
         // available, then continue. Otherwise forward the error
         if (error_stack.front().code == static_cast<int>(temoto_core::error::Code::NO_TRACKERS_FOUND) &&
             &pipe_category != &detection_methods.back())
         {
           continue;
         }
-
-        throw FORWARD_ERROR(error_stack);
+        else
+        {
+          throw FORWARD_ERROR(error_stack);
+        }
       }
     }
 
     /*
-     * Start the specific object tracker. Since there are different general object
+     * Start the object tracker. Since there are different general object
      * tracking methods and each tracker outputs different types of data, then
      * the specific tracking has to be set up based on the general tracker. For example
      * a general tracker, e.g. AR tag detector, publshes data about detected tags. The
@@ -463,129 +462,64 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     /*
      * Get the topic where the tracker publishes its output data
      */
-    temoto_core::TopicContainer tracker_topics;
-    tracker_topics.setOutputTopicsByKeyValue(load_pipe_msg.response.output_topics);
+    temoto_core::TopicContainer pipe_topics;
+    pipe_topics.setOutputTopicsByKeyValue(load_pipe_msg.response.output_topics);
 
     // Topic where the information about the required object is going to be published.
     std::string tracked_object_topic = temoto_core::common::getAbsolutePath("object_tracker/" + object_name_no_space);
 
     /*
-     * AR tag based object tracker setup
+     * Object tracker setup
      */
-    if (selected_pipe == "artags")
-    {
-      TEMOTO_DEBUG_STREAM("Using AR-tag based tracking");
-
-      // Get the AR tag data dopic
-      std::string tracker_data_topic = tracker_topics.getOutputTopic("marker_data");
-
-      /*
-       * TTP related stuff up ahead: A semantic frame is manually created. Based on that SF
-       * a SF tree is created, given that an action implementation, that corresponds to the
-       * manually created SF, exists. The specific tracker task is started and it continues
-       * running in the background until its ordered to stop.
-       */
-
-      std::string action = "track";
-      temoto_nlp::Subjects subjects;
-
-      // Subject that will contain the name of the tracked object.
-      // Necessary when the tracker has to be stopped
-      temoto_nlp::Subject sub_0("what", object_name_no_space);
-
-      // Subject that will contain the data necessary for the specific tracker
-      temoto_nlp::Subject sub_1("what", "artag data");
-
-      // Topic from where the raw AR tag tracker data comes from
-      sub_1.addData("topic", tracker_data_topic);
-
-      // Topic where the AImp must publish the data about the tracked object
-      sub_1.addData("topic", tracked_object_topic);
-
-      // This object will be updated inside the tracking AImp (action implementation)
-      sub_1.addData("pointer", boost::any_cast<ObjectPtr>(requested_object));
-
-      subjects.push_back(sub_0);
-      subjects.push_back(sub_1);
-
-      // Create a SF
-      std::vector<temoto_nlp::TaskDescriptor> task_descriptors;
-      task_descriptors.emplace_back(action, subjects);
-      task_descriptors[0].setActionStemmed(action);
-
-      // Create a sematic frame tree
-      temoto_nlp::TaskTree sft = temoto_nlp::SFTBuilder::build(task_descriptors);
-
-      // Get the root node of the tree
-      temoto_nlp::TaskTreeNode& root_node = sft.getRootNode();
-      sft.printTaskDescriptors(root_node);
-
-      // Execute the SFT
-      tracker_core_.executeSFT(std::move(sft));
-
-      // Put the object into the list of tracked objects. This is used later
-      // for stopping the tracker
-      m_tracked_objects_local_[res.rmp.resource_id] = object_name_no_space;
-    }
+    TEMOTO_DEBUG_STREAM("Using " << selected_pipe << " based tracking");
 
     /*
-     * Hand based object tracker setup
+     * Action related stuff up ahead: A semantic frame is manually created. Based on that SF
+     * a SF tree is created, given that an action implementation, that corresponds to the
+     * manually created SF, exists. The tracker action is invoked and it continues
+     * running in the background until its ordered to stop.
      */
-    if (selected_pipe == "hands")
-    {
-      TEMOTO_DEBUG_STREAM("Using hand based tracking");
 
-      // Get the AR tag data dopic
-      std::string tracker_data_topic = tracker_topics.getOutputTopic("handtracker_data");
+    std::string action = "track";
+    temoto_nlp::Subjects subjects;
 
-      /*
-       * TTP related stuff up ahead: A semantic frame is manually created. Based on that SF
-       * a SF tree is created, given that an action implementation, that corresponds to the
-       * manually created SF, exists. The specific tracker task is started and it continues
-       * running in the background until its ordered to stop.
-       */
+    // Subject that will contain the name of the tracked object.
+    // Necessary when the tracker has to be stopped
+    temoto_nlp::Subject sub_0("what", object_name_no_space);
 
-      std::string action = "track";
-      temoto_nlp::Subjects subjects;
+    // Subject that will contain the data necessary for the specific tracker
+    temoto_nlp::Subject sub_1("what", selected_pipe);
 
-      // Subject that will contain the name of the tracked object.
-      // Necessary when the tracker has to be stopped
-      temoto_nlp::Subject sub_0("what", object_name_no_space);
+    // Topic where the action must publish the data about the tracked object
+    sub_1.addData("topic", tracked_object_topic);
 
-      // Subject that will contain the data necessary for the specific tracker
-      temoto_nlp::Subject sub_1("what", "hand data");
+    // Pass the topic container so that the action can access the pipe
+    sub_1.addData("pointer", boost::any_cast<temoto_core::TopicContainer>(pipe_topics));
 
-      // Topic from where the raw hand tracker data comes from
-      sub_1.addData("topic", tracker_data_topic);
+    // Pass a pointer to EMR, which will be used to access EMR without ROS messaging overhead
+    sub_1.addData("pointer", boost::any_cast<emr::EnvironmentModelRepository*>(&env_model_repository_));
 
-      // Topic where the AImp must publish the data about the tracked object
-      sub_1.addData("topic", tracked_object_topic);
+    subjects.push_back(sub_0);
+    subjects.push_back(sub_1);
 
-      // This object will be updated inside the tracking AImp (action implementation)
-      sub_1.addData("pointer", boost::any_cast<ObjectPtr>(requested_object));
+    // Create a SF
+    std::vector<temoto_nlp::TaskDescriptor> task_descriptors;
+    task_descriptors.emplace_back(action, subjects);
+    task_descriptors[0].setActionStemmed(action);
 
-      subjects.push_back(sub_0);
-      subjects.push_back(sub_1);
+    // Create a sematic frame tree
+    temoto_nlp::TaskTree sft = temoto_nlp::SFTBuilder::build(task_descriptors);
 
-      // Create a SF
-      std::vector<temoto_nlp::TaskDescriptor> task_descriptors;
-      task_descriptors.emplace_back(action, subjects);
-      task_descriptors[0].setActionStemmed(action);
+    // Get the root node of the tree
+    temoto_nlp::TaskTreeNode& root_node = sft.getRootNode();
+    sft.printTaskDescriptors(root_node);
 
-      // Create a sematic frame tree
-      temoto_nlp::TaskTree sft = temoto_nlp::SFTBuilder::build(task_descriptors);
+    // Execute the SFT
+    tracker_core_.executeSFT(std::move(sft));
 
-      // Get the root node of the tree
-      temoto_nlp::TaskTreeNode& root_node = sft.getRootNode();
-      sft.printTaskDescriptors(root_node);
-
-      // Execute the SFT
-      tracker_core_.executeSFT(std::move(sft));
-
-      // Put the object into the list of tracked objects. This is used later
-      // for stopping the tracker
-      m_tracked_objects_local_[res.rmp.resource_id] = object_name_no_space;
-    }
+    // Put the object into the list of tracked objects. This is used later
+    // for stopping the tracker
+    m_tracked_objects_local_[res.rmp.resource_id] = object_name_no_space;
 
     res.object_topic = tracked_object_topic;
 
