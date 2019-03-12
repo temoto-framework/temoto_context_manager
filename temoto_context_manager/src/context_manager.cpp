@@ -364,46 +364,68 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
 {
   try
   {
-    // Replace all spaces in the name with the underscore character
+    /*
+     * Replace all spaces in the name with the underscore character because the now deprecated
+     * ObjectContainer API converted all object names into this format. 
+     */ 
     std::string object_name_no_space = req.object_name;
     std::replace(object_name_no_space.begin(), object_name_no_space.end(), ' ', '_');
 
     TEMOTO_INFO_STREAM("Received a request to track an object named: '" << object_name_no_space << "'");
 
     /*
-     * Check if this object is already tracked in other temoto namespace
+     * Check if this object is already tracked in other instance of TeMoto. If thats the case, then
+     * relay the request to the remote TeMoto instance. The response from the remote instance is 
+     * forwarded back to the initial client that initiated the query.
+     * 
+     * M_TODO_lp: Implement a functionality that allows to see what and where 
+     * (in terms of local/remote instances) objects are actively tracked., i.e., uncomment and
+     * modify the following block.
      */
-    std::string remote_temoto_namespace = m_tracked_objects_remote_[object_name_no_space];
 
-    if (!remote_temoto_namespace.empty())
-    {
-      TEMOTO_DEBUG_STREAM("The object '" << object_name_no_space << "' is alerady tracked by '"
-                          << remote_temoto_namespace << "'. Forwarding the request.");
+    // std::string remote_temoto_namespace = m_tracked_objects_remote_[object_name_no_space];
 
-      TrackObject track_object_msg;
-      track_object_msg.request = req;
+    // if (!remote_temoto_namespace.empty())
+    // {
+    //   TEMOTO_DEBUG_STREAM("The object '" << object_name_no_space << "' is alerady tracked by '"
+    //                       << remote_temoto_namespace << "'. Forwarding the request.");
 
-      // Send the request to the remote namespace
-      resource_manager_2_.template call<TrackObject>(srv_name::MANAGER,
-                                                     srv_name::TRACK_OBJECT_SERVER,
-                                                     track_object_msg,
-                                                     temoto_core::rmp::FailureBehavior::NONE,
-                                                     remote_temoto_namespace);
+    //   TrackObject track_object_msg;
+    //   track_object_msg.request = req;
 
-      res = track_object_msg.response;
-      return;
-    }
+    //   // Send the request to the remote namespace
+    //   resource_manager_2_.template call<TrackObject>(srv_name::MANAGER,
+    //                                                  srv_name::TRACK_OBJECT_SERVER,
+    //                                                  track_object_msg,
+    //                                                  temoto_core::rmp::FailureBehavior::NONE,
+    //                                                  remote_temoto_namespace);
 
-    // Look if the requested object is described in the object database
+    //   res = track_object_msg.response;
+    //   return;
+    // }
+
+    /*
+     * Look if the requested object is described in the object database
+     * 
+     * M_TODO_hp: Find and return the node. It is up to you how you would
+     * like to return this information but the main thing is that we need
+     * to access the "detection_methods" field of a serialized container
+     */ 
     ObjectPtr requested_object = findObject(object_name_no_space);
 
     TEMOTO_INFO_STREAM("The requested object is known");
 
     /*
      * Start a pipe that provides the raw data for tracking the requested object
+     * 
+     * M_TODO_lp: the "addDetectionMethods" function is deprecated but keep it in at the moment.
      */
     temoto_component_manager::LoadPipe load_pipe_msg;
     addDetectionMethods(requested_object->detection_methods);
+
+    /*
+     * M_TODO_hp: retreive the "detection_methods" of a serialized container
+     */ 
     std::vector<std::string> detection_methods = getOrderedDetectionMethods();
 
     std::string selected_pipe;
@@ -476,7 +498,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     /*
      * Action related stuff up ahead: A semantic frame is manually created. Based on that SF
      * a SF tree is created, given that an action implementation, that corresponds to the
-     * manually created SF, exists. The tracker action is invoked and it continues
+     * manually created SF, exists. The tracker action is invoked  and it continues
      * running in the background until its ordered to stop.
      */
 
