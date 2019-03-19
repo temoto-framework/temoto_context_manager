@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(temoto_context_manager)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++1y -Wno-reorder -Wno-unused-function -Wno-pedantic)
+add_compile_options(-std=c++1y -Wno-reorder -Wno-unused-function)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -13,8 +13,6 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   geometry_msgs
   shape_msgs
-  human_msgs
-  ar_track_alvar_msgs
   visualization_msgs
   diagnostic_msgs
   tf2
