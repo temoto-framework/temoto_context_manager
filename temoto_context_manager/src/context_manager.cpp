@@ -262,7 +262,6 @@ bool ContextManager::addOrUpdateEMRNode(const Container & container, const std::
     std::shared_ptr<emr::ROSPayload<Container>> plptr = std::make_shared<emr::ROSPayload<Container>>(rospl);
     env_model_repository_.updateNode(name, plptr);
   }
-  traverseEMR(*env_model_repository_.getNodeByName("Object1"));
   return true;
 }
 
