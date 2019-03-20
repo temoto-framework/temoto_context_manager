@@ -122,6 +122,8 @@ private:
 
   ObjectPtr findObject(std::string object_name);
 
+  NodePtr findNode(std::string name);
+
   void statusCb1(temoto_core::ResourceStatus& srv);
 
   void statusCb2(temoto_core::ResourceStatus& srv);
@@ -131,6 +133,8 @@ private:
   void addDetectionMethods(std::vector<std::string> detection_methods);
 
   std::vector<std::string> getOrderedDetectionMethods();
+
+  std::vector<std::string> getNodeDetectionMethods(const std::string& name);
 
 
 
