@@ -15,7 +15,7 @@ ContextManager::ContextManager()
   , resource_manager_2_(srv_name::MANAGER_2, this)
   , tracked_objects_syncer_(srv_name::MANAGER, srv_name::SYNC_TRACKED_OBJECTS_TOPIC, &ContextManager::trackedObjectsSyncCb, this)
   , EMR_syncer_(srv_name::MANAGER, srv_name::SYNC_OBJECTS_TOPIC, &ContextManager::EMRSyncCb, this)
-  , tracker_core_(this, false, ros::package::getPath(ROS_PACKAGE_NAME) + "/config/action_dst.yaml")
+  , tracker_action_engine_(this, false, ros::package::getPath(ROS_PACKAGE_NAME) + "/config/action_dst.yaml")
 {
   /*
    * Start the servers
@@ -537,7 +537,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     sft.printTaskDescriptors(root_node);
 
     // Execute the SFT
-    tracker_core_.executeSFT(std::move(sft));
+    tracker_action_engine_.executeSFT(std::move(sft));
 
     // Put the object into the list of tracked objects. This is used later
     // for stopping the tracker
@@ -586,7 +586,7 @@ void ContextManager::unloadTrackObjectCb(TrackObject::Request& req,
                         << tracked_object << "'");
 
     // Stop tracking the object
-    tracker_core_.stopTask("", tracked_object);
+    tracker_action_engine_.stopTask("", tracked_object);
 
     // Erase the object from the map of tracked objects
     m_tracked_objects_local_.erase(res.rmp.resource_id);

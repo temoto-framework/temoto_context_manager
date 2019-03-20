@@ -164,7 +164,7 @@ private:
 
   temoto_core::rmp::ConfigSynchronizer<ContextManager, std::string> tracked_objects_syncer_;
 
-  temoto_nlp::TaskManager tracker_core_;
+  temoto_nlp::TaskManager tracker_action_engine_;
 
   std::map<std::string, temoto_core::Reliability> detection_method_history_;
 
