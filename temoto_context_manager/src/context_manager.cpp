@@ -316,7 +316,30 @@ void ContextManager::advertiseEMR()
     EMR_syncer_.advertise(nodes_payload);
   }
 }
-
+std::vector<std::string> ContextManager::getNodeDetectionMethods(const std::string& name)
+{
+  NodePtr nodeptr = env_model_repository_.getNodeByName(name);
+  if (nodeptr == nullptr) 
+  {
+    throw CREATE_ERROR(temoto_core::error::Code::UNKNOWN_OBJECT, "Node " + name + " not found!");
+  }
+  TEMOTO_INFO_STREAM("The requested item is known");
+  std::string type = nodeptr->getPayload()->getType();
+  if (type == "OBJECT") 
+  {
+    ObjectContainer obj = getContainer<ObjectContainer>(nodeptr);
+    return obj.detection_methods;
+  }
+  else if (type == "MAP") 
+  {
+    MapContainer map = getContainer<MapContainer>(nodeptr);
+    return map.detection_methods; 
+  }
+  else
+  {
+    throw CREATE_ERROR(temoto_core::error::Code::INVALID_CONTAINER_TYPE, "Node type not recognized!");
+  }
+}
 /*
  * Find object
  */
@@ -368,10 +391,10 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
      * Replace all spaces in the name with the underscore character because the now deprecated
      * ObjectContainer API converted all object names into this format. 
      */ 
-    std::string object_name_no_space = req.object_name;
-    std::replace(object_name_no_space.begin(), object_name_no_space.end(), ' ', '_');
+    std::string item_name_no_space = req.object_name;
+    std::replace(item_name_no_space.begin(), item_name_no_space.end(), ' ', '_');
 
-    TEMOTO_INFO_STREAM("Received a request to track an object named: '" << object_name_no_space << "'");
+    TEMOTO_INFO_STREAM("Received a request to track an object named: '" << item_name_no_space << "'");
 
     /*
      * Check if this object is already tracked in other instance of TeMoto. If thats the case, then
@@ -383,11 +406,11 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
      * modify the following block.
      */
 
-    // std::string remote_temoto_namespace = m_tracked_objects_remote_[object_name_no_space];
+    // std::string remote_temoto_namespace = m_tracked_objects_remote_[item_name_no_space];
 
     // if (!remote_temoto_namespace.empty())
     // {
-    //   TEMOTO_DEBUG_STREAM("The object '" << object_name_no_space << "' is alerady tracked by '"
+    //   TEMOTO_DEBUG_STREAM("The object '" << item_name_no_space << "' is alerady tracked by '"
     //                       << remote_temoto_namespace << "'. Forwarding the request.");
 
     //   TrackObject track_object_msg;
@@ -411,22 +434,14 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
      * like to return this information but the main thing is that we need
      * to access the "detection_methods" field of a serialized container
      */ 
-    ObjectPtr requested_object = findObject(object_name_no_space);
-
-    TEMOTO_INFO_STREAM("The requested object is known");
+    std::vector<std::string> detection_methods = getNodeDetectionMethods(item_name_no_space);
 
     /*
      * Start a pipe that provides the raw data for tracking the requested object
-     * 
-     * M_TODO_lp: the "addDetectionMethods" function is deprecated but keep it in at the moment.
      */
     temoto_component_manager::LoadPipe load_pipe_msg;
-    addDetectionMethods(requested_object->detection_methods);
+    // addDetectionMethods(detection_methods);
 
-    /*
-     * M_TODO_hp: retreive the "detection_methods" of a serialized container
-     */ 
-    std::vector<std::string> detection_methods = getOrderedDetectionMethods();
 
     std::string selected_pipe;
 
@@ -438,7 +453,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     {
       try
       {
-        TEMOTO_INFO_STREAM("Trying to track the " << object_name_no_space
+        TEMOTO_INFO_STREAM("Trying to track the " << item_name_no_space
                            << " via '"<< pipe_category << "'");
 
         load_pipe_msg = temoto_component_manager::LoadPipe();
@@ -448,14 +463,14 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
                                                                      load_pipe_msg);
 
         selected_pipe = pipe_category;
-        detection_method_history_[pipe_category].adjustReliability();
+        // detection_method_history_[pipe_category].adjustReliability();
         active_detection_method_.first = load_pipe_msg.response.rmp.resource_id;
         active_detection_method_.second = pipe_category;
         break;
       }
       catch (temoto_core::error::ErrorStack& error_stack)
       {
-        detection_method_history_[pipe_category].adjustReliability(0);
+        // detection_method_history_[pipe_category].adjustReliability(0);
 
         // If the requested pipe was not found but there are other options
         // available, then continue. Otherwise forward the error
@@ -488,7 +503,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     pipe_topics.setOutputTopicsByKeyValue(load_pipe_msg.response.output_topics);
 
     // Topic where the information about the required object is going to be published.
-    std::string tracked_object_topic = temoto_core::common::getAbsolutePath("object_tracker/" + object_name_no_space);
+    std::string tracked_object_topic = temoto_core::common::getAbsolutePath("object_tracker/" + item_name_no_space);
 
     /*
      * Object tracker setup
@@ -507,7 +522,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
 
     // Subject that will contain the name of the tracked object.
     // Necessary when the tracker has to be stopped
-    temoto_nlp::Subject sub_0("what", object_name_no_space);
+    temoto_nlp::Subject sub_0("what", item_name_no_space);
 
     // Subject that will contain the data necessary for the specific tracker
     temoto_nlp::Subject sub_1("what", selected_pipe);
@@ -541,12 +556,12 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
 
     // Put the object into the list of tracked objects. This is used later
     // for stopping the tracker
-    m_tracked_objects_local_[res.rmp.resource_id] = object_name_no_space;
+    m_tracked_objects_local_[res.rmp.resource_id] = item_name_no_space;
 
     res.object_topic = tracked_object_topic;
 
     // Let context managers in other namespaces know, that this object is being tracked
-    tracked_objects_syncer_.advertise(object_name_no_space);
+    tracked_objects_syncer_.advertise(item_name_no_space);
 
   }
   catch (temoto_core::error::ErrorStack& error_stack)
