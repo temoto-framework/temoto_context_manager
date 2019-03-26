@@ -26,7 +26,8 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(FILES 
   ObjectContainer.msg
   MapContainer.msg
-  NodeContainer.msg
+  ItemContainer.msg
+  ComponentContainer.msg
 )
 
 add_service_files(
@@ -34,7 +35,7 @@ add_service_files(
   GetNumber.srv
   TrackObject.srv
   UpdateEMR.srv
-  GetEMRNode.srv
+  GetEMRItem.srv
 )
 
 generate_messages(

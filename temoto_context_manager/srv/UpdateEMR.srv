@@ -1,6 +1,6 @@
-temoto_context_manager/NodeContainer[] nodes
+temoto_context_manager/ItemContainer[] items
 
 ---
 
 # Was the update successful
-temoto_context_manager/NodeContainer[] failed_nodes
+temoto_context_manager/ItemContainer[] failed_items

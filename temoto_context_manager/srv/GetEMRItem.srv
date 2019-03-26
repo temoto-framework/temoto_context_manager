@@ -1,0 +1,9 @@
+# Name of item we need
+string name
+string type
+
+---
+
+temoto_context_manager/ItemContainer item
+
+bool success

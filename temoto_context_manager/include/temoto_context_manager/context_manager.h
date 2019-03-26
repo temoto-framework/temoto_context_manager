@@ -47,56 +47,56 @@ private:
    */
   void unloadTrackObjectCb(TrackObject::Request& req, TrackObject::Response& res);
 
-  void EMRSyncCb(const temoto_core::ConfigSync& msg, const Nodes& payload);
+  void EMRSyncCb(const temoto_core::ConfigSync& msg, const Items& payload);
   
   bool updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& res);
 
-  bool getEMRNodeCb(GetEMRNode::Request& req, GetEMRNode::Response& res);
+  bool getEMRItemCb(GetEMRItem::Request& req, GetEMRItem::Response& res);
 
   void trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload);
 
   template<class Container>
-  Container getContainer(NodePtr nodeptr)
+  Container getContainer(ItemPtr itemptr)
   {
     return std::dynamic_pointer_cast<emr::ROSPayload<Container>>
-      (nodeptr->getPayload())
+      (itemptr->getPayload())
         ->getPayload();
   }
 
   /**
-   * @brief Get node as nodecontainer from EMR
+   * @brief Get item as itemcontainer from EMR
    * 
    * @param name 
    * @param container 
    * @return true 
    * @return false 
    */
-  bool getEMRNode(const std::string& name, std::string type, NodeContainer& container);
+  bool getEMRItem(const std::string& name, std::string type, ItemContainer& container);
   /**
    * @brief Update the EMR structure with new information
    * 
-   * @param nodes_to_add 
+   * @param items_to_add 
    * @param from_other_manager 
-   * @return Nodes that could not be added
+   * @return Items that could not be added
    */
-  Nodes updateEMR(const Nodes & nodes_to_add, bool from_other_manager);
+  Items updateEMR(const Items & items_to_add, bool from_other_manager);
 
   /**
    * @brief Debug function to traverse through EMR tree 
    * 
    * @param root 
    */
-  void traverseEMR(const emr::Node& root);
+  void traverseEMR(const emr::Item& root);
   
   /**
-   * @brief Add or update a single node of the EMR
+   * @brief Add or update a single item of the EMR
    * 
    * @tparam Container 
    * @param container 
    * @param container_type 
    */
   template <class Container>
-  bool addOrUpdateEMRNode(const Container & container, const std::string& container_type);
+  bool addOrUpdateEMRItem(const Container & container, const std::string& container_type);
 
   /**
    * @brief Advertise the EMR state through the config syncer
@@ -105,24 +105,24 @@ private:
   void advertiseEMR();
 
   /**
-   * @brief Save the EMR state as a NodeContainer vector
+   * @brief Save the EMR state as a ItemContainer vector
    * 
    * @param emr 
-   * @return Nodes 
+   * @return Items 
    */
-  Nodes EMRtoVector(const emr::EnvironmentModelRepository& emr);
+  Items EMRtoVector(const emr::EnvironmentModelRepository& emr);
 
   /**
    * @brief Recursive helper function to save EMR state
    * 
-   * @param currentNode 
-   * @param nodes 
+   * @param currentItem 
+   * @param items 
    */
-  void EMRtoVectorHelper(const emr::Node& currentNode, Nodes& nodes);
+  void EMRtoVectorHelper(const emr::Item& currentItem, Items& items);
 
   ObjectPtr findObject(std::string object_name);
 
-  NodePtr findNode(std::string name);
+  ItemPtr findItem(std::string name);
 
   void statusCb1(temoto_core::ResourceStatus& srv);
 
@@ -134,7 +134,7 @@ private:
 
   std::vector<std::string> getOrderedDetectionMethods();
 
-  std::vector<std::string> getNodeDetectionMethods(const std::string& name);
+  std::vector<std::string> getItemDetectionMethods(const std::string& name);
 
 
 
@@ -152,7 +152,7 @@ private:
 
   ros::ServiceServer update_emr_server_;
 
-  ros::ServiceServer get_emr_node_server_;
+  ros::ServiceServer get_emr_item_server_;
 
   ObjectPtrs objects_;
 
@@ -164,7 +164,7 @@ private:
 
   // Configuration syncer that manages external resource descriptions and synchronizes them
   // between all other (context) managers
-  temoto_core::rmp::ConfigSynchronizer<ContextManager, Nodes> EMR_syncer_;
+  temoto_core::rmp::ConfigSynchronizer<ContextManager, Items> EMR_syncer_;
 
   temoto_core::rmp::ConfigSynchronizer<ContextManager, std::string> tracked_objects_syncer_;
 
