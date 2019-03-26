@@ -296,17 +296,19 @@ bool ContextManager::addOrUpdateEMRItem(const Container& container, const std::s
   return true;
 }
 
-Items ContextManager::updateEMR(const Items& items_to_add, bool from_other_manager)
+Items ContextManager::updateEMR(const Items& items_to_add, bool from_other_manager, bool update_time)
 {
+  
   // Keep track of failed add/update attempts
   std::vector<ItemContainer> failed_items;
-  for (auto item_container : items_to_add)
+  for (const auto& item_container : items_to_add)
   {
     if (item_container.type == "OBJECT") 
     {
       // Deserialize into an ObjectContainer object and add to EMR
       ObjectContainer oc = 
         temoto_core::deserializeROSmsg<ObjectContainer>(item_container.serialized_container);
+      if (update_time) oc.last_modified = ros::Time::now();
       if (!addOrUpdateEMRItem(oc, "OBJECT")) failed_items.push_back(item_container);
     }
     else if (item_container.type == "MAP") 
@@ -314,6 +316,7 @@ Items ContextManager::updateEMR(const Items& items_to_add, bool from_other_manag
       // Deserialize into an MapContainer object and add to EMR
       MapContainer mc = 
         temoto_core::deserializeROSmsg<MapContainer>(item_container.serialized_container);
+      if (update_time) mc.last_modified = ros::Time::now();
       if (!addOrUpdateEMRItem(mc, "MAP")) failed_items.push_back(item_container);
     }
     else if (item_container.type == "COMPONENT") 
@@ -321,6 +324,7 @@ Items ContextManager::updateEMR(const Items& items_to_add, bool from_other_manag
       // Deserialize into an ComponentContainer object and add to EMR
       ComponentContainer cc = 
         temoto_core::deserializeROSmsg<ComponentContainer>(item_container.serialized_container);
+      if (update_time) cc.last_modified = ros::Time::now();
       if (!addOrUpdateEMRItem(cc, "COMPONENT")) failed_items.push_back(item_container);
     }
     else

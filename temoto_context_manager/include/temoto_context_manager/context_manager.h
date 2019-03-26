@@ -79,7 +79,7 @@ private:
    * @param from_other_manager 
    * @return Items that could not be added
    */
-  Items updateEMR(const Items & items_to_add, bool from_other_manager);
+  Items updateEMR(const Items & items_to_add, bool from_other_manager, bool update_time=false);
 
   /**
    * @brief Debug function to traverse through EMR tree 
