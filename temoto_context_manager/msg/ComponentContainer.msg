@@ -9,3 +9,5 @@ string component_type
 
 # Position in relation to parent
 geometry_msgs/PoseStamped pose
+
+time last_modified

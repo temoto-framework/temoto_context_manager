@@ -233,7 +233,7 @@ bool ContextManager::getEMRItem(const std::string& name, std::string type, ItemC
         container.serialized_container = temoto_core::serializeROSmsg(rospl);
         container.type = type;
         return true;
-      }
+      } 
       else
       {
         TEMOTO_ERROR_STREAM("Wrong type requested for EMR item with name: " << name << std::endl);
@@ -254,7 +254,7 @@ bool ContextManager::getEMRItem(const std::string& name, std::string type, ItemC
 }
 
 template <class Container>
-bool ContextManager::addOrUpdateEMRItem(const Container & container, const std::string& container_type)
+bool ContextManager::addOrUpdateEMRItem(const Container& container, const std::string& container_type)
 {
   emr::ROSPayload<Container> rospl = emr::ROSPayload<Container>(container);
   rospl.setType(container_type);
@@ -284,9 +284,14 @@ bool ContextManager::addOrUpdateEMRItem(const Container & container, const std::
   }
   else
   {
-    // Update the item information
-    std::shared_ptr<emr::ROSPayload<Container>> plptr = std::make_shared<emr::ROSPayload<Container>>(rospl);
-    env_model_repository_.updateItem(name, plptr);
+    ItemPtr itemptr = env_model_repository_.getItemByName(name);
+    if (container.last_modified > getContainer<Container>(itemptr).last_modified) 
+    {
+      // Update the item information
+      std::shared_ptr<emr::ROSPayload<Container>> plptr = std::make_shared<emr::ROSPayload<Container>>(rospl);
+      env_model_repository_.updateItem(name, plptr);
+      TEMOTO_INFO_STREAM("Updated item: " << name);
+    }
   }
   return true;
 }

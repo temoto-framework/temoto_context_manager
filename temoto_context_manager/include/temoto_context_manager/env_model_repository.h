@@ -177,7 +177,7 @@ public:
    * @param item_name 
    * @return std::shared_ptr<Item> 
    */
-  const std::shared_ptr<Item>& getItemByName(std::string item_name)
+  const std::shared_ptr<Item> getItemByName(std::string item_name)
   {
     return items[item_name];
   }

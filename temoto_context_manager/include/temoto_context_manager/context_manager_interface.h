@@ -188,10 +188,10 @@ public:
    * @param containers 
    */
   template <class Container>
-  void addToEMR(const std::vector<Container> & containers)
+  void addToEMR(std::vector<Container> & containers)
   {
     std::vector<temoto_context_manager::ItemContainer> item_containers;
-    for (const auto& container : containers)
+    for (auto& container : containers)
     {
       if (container.name == "")
       {
@@ -199,6 +199,7 @@ public:
       }
       else
       {
+        container.last_modified = ros::Time::now();
         temoto_context_manager::ItemContainer nc;
         // Check the type of the container
         if (std::is_same<Container, ObjectContainer>::value) 
