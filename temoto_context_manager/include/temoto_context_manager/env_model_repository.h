@@ -1,12 +1,8 @@
 #ifndef TEMOTO_ENV_MODEL_REPOSITORY_H
 #define TEMOTO_ENV_MODEL_REPOSITORY_H
 
-namespace temoto_context_manager 
-{
 namespace emr 
 {
-
-
 
 /**
  * @brief Abstract base class for payloads
@@ -195,5 +191,4 @@ public:
 
 
 } // namespace emr
-} // namespace temoto_context_manager
 #endif

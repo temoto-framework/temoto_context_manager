@@ -90,8 +90,8 @@ void startInterface_0()
   std::string  what_1_word_in = what_1_in.words_[0];
   std::string  what_1_data_0_in = boost::any_cast<std::string>(what_1_in.data_[0].value);
   temoto_core::TopicContainer topic_container = boost::any_cast<temoto_core::TopicContainer>(what_1_in.data_[1].value);
-  temoto_context_manager::emr::EnvironmentModelRepository* emr_ptr = 
-    boost::any_cast<temoto_context_manager::emr::EnvironmentModelRepository*>(what_1_in.data_[2].value);
+  emr::EnvironmentModelRepository* emr_ptr = 
+    boost::any_cast<emr::EnvironmentModelRepository*>(what_1_in.data_[2].value);
 
   TEMOTO_INFO_STREAM("starting to track object: " << object_name);
   TEMOTO_INFO_STREAM("Receiving informantion on topics: " << object_name);

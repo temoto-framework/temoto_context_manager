@@ -37,8 +37,6 @@ ContextManager::ContextManager()
 
   // "Update EMR" server
   update_emr_server_ = nh_.advertiseService(srv_name::SERVER_UPDATE_EMR, &ContextManager::updateEMRCb, this);
-  // "Get EMR Item" server
-  get_emr_item_server_ = nh_.advertiseService(srv_name::SERVER_GET_EMR_ITEM, &ContextManager::getEMRItemCb, this);
   
   // Request remote EMR configurations
   EMR_syncer_.requestRemoteConfigs();
@@ -84,22 +82,6 @@ void ContextManager::EMRSyncCb(const temoto_core::ConfigSync& msg, const Items& 
     updateEMR(payload, true);
   }
 }
-/**
- * @brief Function to traverse and print out every item name in the tree
- * 
- * @param root 
- */
-void ContextManager::traverseEMR(const emr::Item& root)
-{
-  TEMOTO_DEBUG_STREAM(root.getPayload()->getName());
-  std::shared_ptr<emr::ROSPayload<ObjectContainer>> msgptr = std::dynamic_pointer_cast<emr::ROSPayload<ObjectContainer>>(root.getPayload());
-  TEMOTO_DEBUG_STREAM("tag_id: " << msgptr->getPayload().tag_id);
-  std::vector<std::shared_ptr<emr::Item>> children = root.getChildren();
-  for (uint32_t i = 0; i < children.size(); i++)
-  {
-    traverseEMR(*children[i]);
-  }
-}
 
 /*
  * Tracked objects synchronization callback
@@ -125,214 +107,11 @@ void ContextManager::trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, co
   }
 }
 
-Items ContextManager::EMRtoVector(const emr::EnvironmentModelRepository& emr)
-{
-  Items items;
-  std::vector<std::shared_ptr<emr::Item>> root_items = emr.getRootItems();
-  for (const auto& item : root_items)
-  {
-    EMRtoVectorHelper(*item, items);
-  }
-  return items;
-}
-
-void ContextManager::EMRtoVectorHelper(const emr::Item& currentItem, Items& items)
-{
-  // Create empty container and fill it based on the payload
-  ItemContainer nc;
-  
-  nc.type = currentItem.getPayload()->getType();
-
-  // Get the item payload as ROS msg
-  // To do this we dynamically cast the base class to the appropriate
-  //   derived class and call the getPayload() method
-  if (nc.type == "OBJECT") 
-  {
-    ObjectContainer rospl = 
-      std::dynamic_pointer_cast<emr::ROSPayload<ObjectContainer>>(currentItem.getPayload())
-        ->getPayload();
-    nc.serialized_container = temoto_core::serializeROSmsg(rospl);
-    items.push_back(nc);
-  }
-  else if (nc.type == "MAP") 
-  {
-    MapContainer rospl = 
-      std::dynamic_pointer_cast<emr::ROSPayload<MapContainer>>(currentItem.getPayload())
-        ->getPayload();
-    nc.serialized_container = temoto_core::serializeROSmsg(rospl);
-    items.push_back(nc);
-  }
-  else if (nc.type == "COMPONENT") 
-  {
-    ComponentContainer rospl = 
-      std::dynamic_pointer_cast<emr::ROSPayload<ComponentContainer>>(currentItem.getPayload())
-        ->getPayload();
-    nc.serialized_container = temoto_core::serializeROSmsg(rospl);
-    items.push_back(nc);
-  }
-  else
-  {
-    TEMOTO_ERROR_STREAM("Wrong type of container @ EMRtoVectorHelper: " << nc.type);
-    return;
-  }
-
-  std::vector<std::shared_ptr<emr::Item>> children = currentItem.getChildren();
-  for (uint32_t i = 0; i < children.size(); i++)
-  {
-    EMRtoVectorHelper(*children[i], items);
-  }
-}
-
-bool ContextManager::getEMRItem(const std::string& name, std::string type, ItemContainer& container)
-{
-  if (env_model_repository_.hasItem(name))
-  {
-    if (type == "OBJECT") 
-    {
-      ItemPtr itemptr = env_model_repository_.getItemByName(name);
-      if (itemptr->getPayload()->getType() == "OBJECT") 
-      {
-        ObjectContainer rospl = getContainer<ObjectContainer>(itemptr);
-        container.serialized_container = temoto_core::serializeROSmsg(rospl);
-        container.type = type;
-        TEMOTO_WARN_STREAM("Found object");
-        return true;
-      }
-      else
-      {
-        TEMOTO_ERROR_STREAM("Wrong type requested for EMR item with name: " << name << std::endl);
-        TEMOTO_ERROR_STREAM("Requested type: " << type << std::endl);
-        TEMOTO_ERROR_STREAM("Actual type: OBJECT" << std::endl);
-        return false;
-      }
-    }
-    else if (type == "MAP") 
-    {
-      ItemPtr itemptr = env_model_repository_.getItemByName(name);
-      if (itemptr->getPayload()->getType() == "MAP") 
-      {
-        MapContainer rospl = getContainer<MapContainer>(itemptr);
-        container.serialized_container = temoto_core::serializeROSmsg(rospl);
-        container.type = type;
-        return true;
-      }
-      else
-      {
-        TEMOTO_ERROR_STREAM("Wrong type requested for EMR item with name: " << name << std::endl);
-        TEMOTO_ERROR_STREAM("Requested type: " << type << std::endl);
-        TEMOTO_ERROR_STREAM("Actual type: MAP " << std::endl);
-        return false;
-      }
-    }
-    else if (type == "COMPONENT") 
-    {
-      ItemPtr itemptr = env_model_repository_.getItemByName(name);
-      if (itemptr->getPayload()->getType() == "COMPONENT") 
-      {
-        ComponentContainer rospl = getContainer<ComponentContainer>(itemptr);
-        container.serialized_container = temoto_core::serializeROSmsg(rospl);
-        container.type = type;
-        return true;
-      } 
-      else
-      {
-        TEMOTO_ERROR_STREAM("Wrong type requested for EMR item with name: " << name << std::endl);
-        TEMOTO_ERROR_STREAM("Requested type: " << type << std::endl);
-        TEMOTO_ERROR_STREAM("Actual type: COMPONENT " << std::endl);
-        return false;
-      }
-    }
-    else
-    {
-      TEMOTO_ERROR_STREAM("Wrong container type specified: " << type << std::endl);
-      return false;
-    }
-  }
-  TEMOTO_ERROR_STREAM("No item with name " << name << " found in EMR" << std::endl);
-  return false;
-  
-}
-
-template <class Container>
-bool ContextManager::addOrUpdateEMRItem(const Container& container, const std::string& container_type)
-{
-  emr::ROSPayload<Container> rospl = emr::ROSPayload<Container>(container);
-  rospl.setType(container_type);
-  std::string name = container.name;
-  std::string parent = container.parent;
-
-  // Check for empty name field
-  // Move these to the context manager interface maybe? TBD
-  if (name == "") 
-  {
-    TEMOTO_ERROR_STREAM("Empty string not allowed as EMR item name!");
-    return false;
-  }
-  // Check if the parent exists
-  if ((!parent.empty()) && (!env_model_repository_.hasItem(parent))) 
-  {
-    TEMOTO_ERROR_STREAM("No parent with name " << parent << " found in EMR!");
-    return false;
-  }
-  
-  // Check if the object has to be added or updated
-  if (!env_model_repository_.hasItem(name)) 
-  {
-    // Add the new item
-    std::shared_ptr<emr::ROSPayload<Container>> plptr = std::make_shared<emr::ROSPayload<Container>>(rospl);
-    env_model_repository_.addItem(name, parent, plptr);
-  }
-  else
-  {
-    ItemPtr itemptr = env_model_repository_.getItemByName(name);
-    if (container.last_modified > getContainer<Container>(itemptr).last_modified) 
-    {
-      // Update the item information
-      std::shared_ptr<emr::ROSPayload<Container>> plptr = std::make_shared<emr::ROSPayload<Container>>(rospl);
-      env_model_repository_.updateItem(name, plptr);
-      TEMOTO_INFO_STREAM("Updated item: " << name);
-    }
-  }
-  return true;
-}
-
 Items ContextManager::updateEMR(const Items& items_to_add, bool from_other_manager, bool update_time)
 {
   
   // Keep track of failed add/update attempts
-  std::vector<ItemContainer> failed_items;
-  for (const auto& item_container : items_to_add)
-  {
-    if (item_container.type == "OBJECT") 
-    {
-      // Deserialize into an ObjectContainer object and add to EMR
-      ObjectContainer oc = 
-        temoto_core::deserializeROSmsg<ObjectContainer>(item_container.serialized_container);
-      if (update_time) oc.last_modified = ros::Time::now();
-      if (!addOrUpdateEMRItem(oc, "OBJECT")) failed_items.push_back(item_container);
-    }
-    else if (item_container.type == "MAP") 
-    {
-      // Deserialize into an MapContainer object and add to EMR
-      MapContainer mc = 
-        temoto_core::deserializeROSmsg<MapContainer>(item_container.serialized_container);
-      if (update_time) mc.last_modified = ros::Time::now();
-      if (!addOrUpdateEMRItem(mc, "MAP")) failed_items.push_back(item_container);
-    }
-    else if (item_container.type == "COMPONENT") 
-    {
-      // Deserialize into an ComponentContainer object and add to EMR
-      ComponentContainer cc = 
-        temoto_core::deserializeROSmsg<ComponentContainer>(item_container.serialized_container);
-      if (update_time) cc.last_modified = ros::Time::now();
-      if (!addOrUpdateEMRItem(cc, "COMPONENT")) failed_items.push_back(item_container);
-    }
-    else
-    {
-      TEMOTO_ERROR_STREAM("Wrong type " << item_container.type.c_str() << "specified for EMR item");
-      failed_items.push_back(item_container);
-    }
-  }
+  std::vector<ItemContainer> failed_items = emr_interface.updateEMR(items_to_add, update_time);
 
   // If this object was added by its own namespace, then advertise this config to other managers
   if (!from_other_manager)
@@ -350,7 +129,7 @@ Items ContextManager::updateEMR(const Items& items_to_add, bool from_other_manag
 void ContextManager::advertiseEMR()
 {
   // Publish all items 
-  Items items_payload = EMRtoVector(env_model_repository_);
+  Items items_payload = emr_interface.EMRtoVector();
   // If there is something to send, advertise.
   if (items_payload.size()) 
   {
@@ -412,16 +191,6 @@ bool ContextManager::updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& r
   TEMOTO_INFO("Received a request to add %ld item(s) to the EMR.", req.items.size());
 
   res.failed_items = ContextManager::updateEMR(req.items, false);
-  return true;
-}
-bool ContextManager::getEMRItemCb(GetEMRItem::Request& req, GetEMRItem::Response& res)
-{
-  TEMOTO_INFO_STREAM("Received a request to get item: " << req.name << "from the EMR." << std::endl);
-  ItemContainer nc;
-  
-  res.success = ContextManager::getEMRItem(req.name, req.type, nc);
-  res.item = nc;
-  TEMOTO_WARN_STREAM("t1 " << res.success);
   return true;
 }
 

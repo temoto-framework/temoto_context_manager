@@ -16,6 +16,7 @@ typedef std::shared_ptr<ObjectContainer> ObjectPtr;
 typedef std::vector<ObjectPtr> ObjectPtrs;
 typedef std::vector<ItemContainer> Items;
 typedef std::shared_ptr<emr::Item> ItemPtr;
+
 // ObjectContainer comparison operator
 bool operator==(const ObjectContainer& ob1, const ObjectContainer& ob2);
 

@@ -7,12 +7,13 @@
 #include "temoto_core/rmp/resource_manager.h"
 #include "temoto_core/rmp/config_synchronizer.h"
 
-#include "temoto_context_manager/context_manager_containers.h"
 #include "temoto_context_manager/context_manager_services.h"
+#include "temoto_context_manager/context_manager_containers.h"
 #include "temoto_context_manager/env_model_repository.h"
 
 #include "temoto_nlp/task_manager.h"
 #include "temoto_component_manager/component_manager_services.h"
+#include "temoto_context_manager/EMR_ROS_interface.h"
 
 namespace temoto_context_manager
 {
@@ -51,27 +52,16 @@ private:
   
   bool updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& res);
 
-  bool getEMRItemCb(GetEMRItem::Request& req, GetEMRItem::Response& res);
-
   void trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload);
 
   template<class Container>
-  Container getContainer(ItemPtr itemptr)
+  Container getContainer(std::shared_ptr<emr::Item> itemptr)
   {
     return std::dynamic_pointer_cast<emr::ROSPayload<Container>>
       (itemptr->getPayload())
         ->getPayload();
   }
 
-  /**
-   * @brief Get item as itemcontainer from EMR
-   * 
-   * @param name 
-   * @param container 
-   * @return true 
-   * @return false 
-   */
-  bool getEMRItem(const std::string& name, std::string type, ItemContainer& container);
   /**
    * @brief Update the EMR structure with new information
    * 
@@ -80,49 +70,14 @@ private:
    * @return Items that could not be added
    */
   Items updateEMR(const Items & items_to_add, bool from_other_manager, bool update_time=false);
-
-  /**
-   * @brief Debug function to traverse through EMR tree 
-   * 
-   * @param root 
-   */
-  void traverseEMR(const emr::Item& root);
   
-  /**
-   * @brief Add or update a single item of the EMR
-   * 
-   * @tparam Container 
-   * @param container 
-   * @param container_type 
-   */
-  template <class Container>
-  bool addOrUpdateEMRItem(const Container & container, const std::string& container_type);
-
   /**
    * @brief Advertise the EMR state through the config syncer
    * 
    */
   void advertiseEMR();
 
-  /**
-   * @brief Save the EMR state as a ItemContainer vector
-   * 
-   * @param emr 
-   * @return Items 
-   */
-  Items EMRtoVector(const emr::EnvironmentModelRepository& emr);
-
-  /**
-   * @brief Recursive helper function to save EMR state
-   * 
-   * @param currentItem 
-   * @param items 
-   */
-  void EMRtoVectorHelper(const emr::Item& currentItem, Items& items);
-
   ObjectPtr findObject(std::string object_name);
-
-  ItemPtr findItem(std::string name);
 
   void statusCb1(temoto_core::ResourceStatus& srv);
 
@@ -161,6 +116,8 @@ private:
   std::map<std::string, std::string> m_tracked_objects_remote_;
 
   emr::EnvironmentModelRepository env_model_repository_;
+
+  EMR_ROS_Interface::EMR_ROS_interface emr_interface{env_model_repository_};
 
   // Configuration syncer that manages external resource descriptions and synchronizes them
   // between all other (context) managers

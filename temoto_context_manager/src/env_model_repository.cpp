@@ -5,8 +5,6 @@
 #include <vector>
 #include "temoto_context_manager/env_model_repository.h"
 
-namespace temoto_context_manager 
-{
 namespace emr 
 {
 void EnvironmentModelRepository::addItem(const std::string& name, const std::string& parent, std::shared_ptr<PayloadEntry> payload)
@@ -77,4 +75,3 @@ void Item::setParent(std::shared_ptr<Item> parent)
 }
 
 } // namespace emr
-} // namespace temoto_context_manager
