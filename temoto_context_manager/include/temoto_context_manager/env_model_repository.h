@@ -30,34 +30,6 @@ public:
   void setType(std::string ntype) {type = ntype;}
 };
 
-template <class ROSMsg>
-class ROSPayload : public PayloadEntry
-{
-private:
-  ROSMsg payload_;
-public:
-  /**
-   * @brief Get the Name object
-   * 
-   * @return std::string 
-   */
-  const std::string& getName() const
-  {
-    return payload_.name;
-  }
-  const ROSMsg& getPayload() const {return payload_;};
-  /**
-   * @brief Set the Payload object
-   * 
-   * @param payload 
-   */
-  void setPayload(ROSMsg & payload) {payload_ = payload;};
-
-  ROSPayload(ROSMsg payload) : payload_(payload)
-  {
-  }
-
-};
 
 /**
  * @brief A single item in the EMR tree

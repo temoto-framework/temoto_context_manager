@@ -14,7 +14,7 @@ ContextManager::ContextManager()
   , resource_manager_1_(srv_name::MANAGER, this)
   , resource_manager_2_(srv_name::MANAGER_2, this)
   , tracked_objects_syncer_(srv_name::MANAGER, srv_name::SYNC_TRACKED_OBJECTS_TOPIC, &ContextManager::trackedObjectsSyncCb, this)
-  , EMR_syncer_(srv_name::MANAGER, srv_name::SYNC_OBJECTS_TOPIC, &ContextManager::EMRSyncCb, this)
+  , emr_syncer_(srv_name::MANAGER, srv_name::SYNC_OBJECTS_TOPIC, &ContextManager::emrSyncCb, this)
   , tracker_action_engine_(this, false, ros::package::getPath(ROS_PACKAGE_NAME) + "/config/action_dst.yaml")
 {
   /*
@@ -36,10 +36,10 @@ ContextManager::ContextManager()
   resource_manager_1_.registerStatusCb(&ContextManager::statusCb2);
 
   // "Update EMR" server
-  update_emr_server_ = nh_.advertiseService(srv_name::SERVER_UPDATE_EMR, &ContextManager::updateEMRCb, this);
+  update_emr_server_ = nh_.advertiseService(srv_name::SERVER_UPDATE_EMR, &ContextManager::updateEmrCb, this);
   
   // Request remote EMR configurations
-  EMR_syncer_.requestRemoteConfigs();
+  emr_syncer_.requestRemoteConfigs();
   
   TEMOTO_INFO("Context Manager is ready.");
 }
@@ -67,11 +67,11 @@ void ContextManager::unloadGetNumberCb( GetNumber::Request& req
 /*
  * EMR synchronization callback
  */
-void ContextManager::EMRSyncCb(const temoto_core::ConfigSync& msg, const Items& payload)
+void ContextManager::emrSyncCb(const temoto_core::ConfigSync& msg, const Items& payload)
 {
   if (msg.action == temoto_core::rmp::sync_action::REQUEST_CONFIG)
   {
-    advertiseEMR();
+    advertiseEmr();
     return;
   }
 
@@ -79,7 +79,7 @@ void ContextManager::EMRSyncCb(const temoto_core::ConfigSync& msg, const Items& 
   if (msg.action == temoto_core::rmp::sync_action::ADVERTISE_CONFIG)
   {
     TEMOTO_DEBUG("Received a payload.");
-    updateEMR(payload, true);
+    updateEmr(payload, true);
   }
 }
 
@@ -107,17 +107,17 @@ void ContextManager::trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, co
   }
 }
 
-Items ContextManager::updateEMR(const Items& items_to_add, bool from_other_manager, bool update_time)
+Items ContextManager::updateEmr(const Items& items_to_add, bool from_other_manager, bool update_time)
 {
   
   // Keep track of failed add/update attempts
-  std::vector<ItemContainer> failed_items = emr_interface.updateEMR(items_to_add, update_time);
+  std::vector<ItemContainer> failed_items = emr_interface.updateEmr(items_to_add, update_time);
 
   // If this object was added by its own namespace, then advertise this config to other managers
   if (!from_other_manager)
   {
     TEMOTO_INFO("Advertising EMR to other namespaces.");
-    advertiseEMR(); 
+    advertiseEmr(); 
   }
   return failed_items;
 }
@@ -126,14 +126,14 @@ Items ContextManager::updateEMR(const Items& items_to_add, bool from_other_manag
  * Advertise all objects
  */
 // 
-void ContextManager::advertiseEMR()
+void ContextManager::advertiseEmr()
 {
   // Publish all items 
-  Items items_payload = emr_interface.EMRtoVector();
+  Items items_payload = emr_interface.EmrToVector();
   // If there is something to send, advertise.
   if (items_payload.size()) 
   {
-    EMR_syncer_.advertise(items_payload);
+    emr_syncer_.advertise(items_payload);
   }
 }
 std::vector<std::string> ContextManager::getItemDetectionMethods(const std::string& name)
@@ -147,12 +147,12 @@ std::vector<std::string> ContextManager::getItemDetectionMethods(const std::stri
   std::string type = itemptr->getPayload()->getType();
   if (type == "OBJECT") 
   {
-    ObjectContainer obj = getContainer<ObjectContainer>(itemptr);
+    ObjectContainer obj = emr_interface.getContainer<ObjectContainer>(name);
     return obj.detection_methods;
   }
   else if (type == "MAP") 
   {
-    MapContainer map = getContainer<MapContainer>(itemptr);
+    MapContainer map = emr_interface.getContainer<MapContainer>(name);
     return map.detection_methods;
   }
   else if (type == "COMPONENT")
@@ -185,12 +185,12 @@ ObjectPtr ContextManager::findObject(std::string object_name)
 /*
  * Callback for adding objects
  */
-bool ContextManager::updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& res)
+bool ContextManager::updateEmrCb(UpdateEmr::Request& req, UpdateEmr::Response& res)
 {
   (void)res; // Suppress "unused variable" compiler warnings
   TEMOTO_INFO("Received a request to add %ld item(s) to the EMR.", req.items.size());
 
-  res.failed_items = ContextManager::updateEMR(req.items, false);
+  res.failed_items = ContextManager::updateEmr(req.items, false);
   return true;
 }
 
@@ -348,7 +348,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     sub_1.addData("pointer", boost::any_cast<temoto_core::TopicContainer>(pipe_topics));
 
     // Pass a pointer to EMR interface, which will be used to access EMR without ROS messaging overhead
-    sub_1.addData("pointer", boost::any_cast<EMR_ROS_Interface::EMR_ROS_interface*>(&emr_interface));
+    sub_1.addData("pointer", boost::any_cast<emr_ros_interface::EmrRosInterface*>(&emr_interface));
 
     subjects.push_back(sub_0);
     subjects.push_back(sub_1);

@@ -34,7 +34,7 @@ add_service_files(
   FILES
   GetNumber.srv
   TrackObject.srv
-  UpdateEMR.srv
+  UpdateEmr.srv
   GetEMRItem.srv
 )
 
@@ -66,7 +66,7 @@ add_executable(temoto_context_manager
   src/context_manager.cpp
   src/context_manager_containers.cpp
   src/env_model_repository.cpp
-  src/EMR_ROS_interface.cpp
+  src/emr_ros_interface.cpp
 )
 
 add_dependencies(temoto_context_manager

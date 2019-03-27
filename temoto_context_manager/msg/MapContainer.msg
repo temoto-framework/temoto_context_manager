@@ -9,5 +9,3 @@ string[] detection_methods
 
 # Name of EMR parent node
 string parent
-
-time last_modified

@@ -53,7 +53,7 @@ public:
     resource_manager_->registerStatusCb(&ContextManagerInterface::statusInfoCb);
 
     // Add EMR service client
-    update_EMR_client_ = nh_.serviceClient<UpdateEMR>(srv_name::SERVER_UPDATE_EMR);
+    update_EMR_client_ = nh_.serviceClient<UpdateEmr>(srv_name::SERVER_UPDATE_EMR);
   }
 
   int getNumber(const int number)
@@ -123,11 +123,11 @@ public:
    * @param container 
    */
   template <class Container>
-  void addToEMR(const Container& container)
+  void addToEmr(const Container& container)
   {
     std::vector<Container> containers;
     containers.push_back(container);
-    addToEMR(containers);
+    addToEmr(containers);
   }
   /**
    * @brief Add several containers to EMR
@@ -139,7 +139,7 @@ public:
    * @param containers 
    */
   template <class Container>
-  void addToEMR(std::vector<Container> & containers)
+  void addToEmr(std::vector<Container> & containers)
   {
     std::vector<temoto_context_manager::ItemContainer> item_containers;
     for (auto& container : containers)
@@ -150,8 +150,9 @@ public:
       }
       else
       {
-        container.last_modified = ros::Time::now();
         temoto_context_manager::ItemContainer nc;
+        nc.last_modified = ros::Time::now();
+        nc.maintainer = temoto_core::common::getTemotoNamespace();
         // Check the type of the container
         if (std::is_same<Container, ObjectContainer>::value) 
         {
@@ -170,10 +171,10 @@ public:
       }
       
     }
-    UpdateEMR update_EMR_srvmsg;
+    UpdateEmr update_EMR_srvmsg;
     update_EMR_srvmsg.request.items = item_containers;
 
-    if (!update_EMR_client_.call<UpdateEMR>(update_EMR_srvmsg)) 
+    if (!update_EMR_client_.call<UpdateEmr>(update_EMR_srvmsg)) 
     {
       throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
     }

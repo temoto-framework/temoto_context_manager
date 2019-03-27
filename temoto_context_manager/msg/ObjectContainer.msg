@@ -43,5 +43,3 @@ shape_msgs/Mesh mesh
 # Dynamic properties indicate the state of the object
 
 geometry_msgs/PoseStamped pose
-
-time last_modified

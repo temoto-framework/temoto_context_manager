@@ -1,8 +1,8 @@
-#include "temoto_context_manager/EMR_ROS_interface.h"
+#include "temoto_context_manager/emr_ros_interface.h"
 
-namespace EMR_ROS_Interface
+namespace emr_ros_interface
 {
-std::vector<temoto_context_manager::ItemContainer> EMR_ROS_interface::updateEMR(
+std::vector<temoto_context_manager::ItemContainer> EmrRosInterface::updateEmr(
                   const std::vector<temoto_context_manager::ItemContainer>& items_to_add, 
                   bool update_time)
 {
@@ -16,8 +16,7 @@ std::vector<temoto_context_manager::ItemContainer> EMR_ROS_interface::updateEMR(
       // Deserialize into an temoto_context_manager::ObjectContainer object and add to EMR
       temoto_context_manager::ObjectContainer oc = 
         temoto_core::deserializeROSmsg<temoto_context_manager::ObjectContainer>(item_container.serialized_container);
-      if (update_time) oc.last_modified = ros::Time::now();
-      if (!addOrUpdateEMRItem(oc, "OBJECT")) failed_items.push_back(item_container);
+      if (!addOrUpdateEmrItem(oc, "OBJECT", item_container, update_time)) failed_items.push_back(item_container);
     }
     else if (item_container.type == "MAP") 
     {
@@ -25,16 +24,14 @@ std::vector<temoto_context_manager::ItemContainer> EMR_ROS_interface::updateEMR(
       // Deserialize into an temoto_context_manager::MapContainer object and add to EMR
       temoto_context_manager::MapContainer mc = 
         temoto_core::deserializeROSmsg<temoto_context_manager::MapContainer>(item_container.serialized_container);
-      if (update_time) mc.last_modified = ros::Time::now();
-      if (!addOrUpdateEMRItem(mc, "MAP")) failed_items.push_back(item_container);
+      if (!addOrUpdateEmrItem(mc, "MAP", item_container, update_time)) failed_items.push_back(item_container);
     }
     else if (item_container.type == "COMPONENT") 
     {
       // Deserialize into an temoto_context_manager::ComponentContainer object and add to EMR
       temoto_context_manager::ComponentContainer cc = 
         temoto_core::deserializeROSmsg<temoto_context_manager::ComponentContainer>(item_container.serialized_container);
-      if (update_time) cc.last_modified = ros::Time::now();
-      if (!addOrUpdateEMRItem(cc, "COMPONENT")) failed_items.push_back(item_container);
+      if (!addOrUpdateEmrItem(cc, "COMPONENT", item_container, update_time)) failed_items.push_back(item_container);
     }
     else
     {
@@ -47,9 +44,13 @@ std::vector<temoto_context_manager::ItemContainer> EMR_ROS_interface::updateEMR(
 }
 
 template <class Container>
-bool EMR_ROS_interface::addOrUpdateEMRItem(const Container& container, const std::string& container_type)
+bool EmrRosInterface::addOrUpdateEmrItem(
+            const Container& container, 
+            const std::string& container_type, 
+            const temoto_context_manager::ItemContainer& ic,
+            const bool update_time)
 {
-  emr::ROSPayload<Container> rospl = emr::ROSPayload<Container>(container);
+  RosPayload<Container> rospl = RosPayload<Container>(container);
   rospl.setType(container_type);
   std::string name = container.name;
   std::string parent = container.parent;
@@ -72,16 +73,18 @@ bool EMR_ROS_interface::addOrUpdateEMRItem(const Container& container, const std
   if (!env_model_repository_.hasItem(name)) 
   {
     // Add the new item
-    std::shared_ptr<emr::ROSPayload<Container>> plptr = std::make_shared<emr::ROSPayload<Container>>(rospl);
+    rospl.setMaintainer(ic.maintainer);
+    rospl.updateTime(ic.last_modified);
+    std::shared_ptr<RosPayload<Container>> plptr = std::make_shared<RosPayload<Container>>(rospl);
     env_model_repository_.addItem(name, parent, plptr);
   }
   else
   {
-    std::shared_ptr<emr::Item> itemptr = env_model_repository_.getItemByName(name);
-    if (container.last_modified > getContainer<Container>(itemptr).last_modified) 
+    if (ic.last_modified > getRosPayloadPtr<Container>(name)->getTime()) 
     {
       // Update the item information
-      std::shared_ptr<emr::ROSPayload<Container>> plptr = std::make_shared<emr::ROSPayload<Container>>(rospl);
+      if (update_time) rospl.updateTime();
+      std::shared_ptr<RosPayload<Container>> plptr = std::make_shared<RosPayload<Container>>(rospl);
       env_model_repository_.updateItem(name, plptr);
       // TEMOTO_INFO_STREAM("Updated item: " << name);
     }
@@ -89,61 +92,67 @@ bool EMR_ROS_interface::addOrUpdateEMRItem(const Container& container, const std
   return true;
 }
 
-std::vector<temoto_context_manager::ItemContainer> EMR_ROS_interface::EMRtoVector()
+std::vector<temoto_context_manager::ItemContainer> EmrRosInterface::EmrToVector()
 {
   std::vector<temoto_context_manager::ItemContainer> items;
   std::vector<std::shared_ptr<emr::Item>> root_items = env_model_repository_.getRootItems();
   for (const auto& item : root_items)
   {
-    EMRtoVectorHelper(*item, items);
+    EmrToVectorHelper(*item, items);
   }
   return items;
 }
 
-void EMR_ROS_interface::EMRtoVectorHelper(const emr::Item& currentItem, std::vector<temoto_context_manager::ItemContainer>& items)
+void EmrRosInterface::EmrToVectorHelper(const emr::Item& currentItem, std::vector<temoto_context_manager::ItemContainer>& items)
 {
   // Create empty container and fill it based on the payload
-  temoto_context_manager::ItemContainer nc;
+  temoto_context_manager::ItemContainer ic;
   
-  nc.type = currentItem.getPayload()->getType();
+  ic.type = currentItem.getPayload()->getType();
 
   // Get the item payload as ROS msg
   // To do this we dynamically cast the base class to the appropriate
   //   derived class and call the getPayload() method
-  if (nc.type == "OBJECT") 
+  if (ic.type == "OBJECT") 
   {
-    temoto_context_manager::ObjectContainer rospl = 
-      std::dynamic_pointer_cast<emr::ROSPayload<temoto_context_manager::ObjectContainer>>(currentItem.getPayload())
-        ->getPayload();
-    nc.serialized_container = temoto_core::serializeROSmsg(rospl);
-    items.push_back(nc);
+    std::shared_ptr<RosPayload<temoto_context_manager::ObjectContainer>> rospl = 
+      std::dynamic_pointer_cast<RosPayload<temoto_context_manager::ObjectContainer>>(currentItem.getPayload());
+    ic.serialized_container = temoto_core::serializeROSmsg(rospl->getPayload());
+    ic.last_modified = rospl->getTime();
+    ic.maintainer = rospl->getMaintainer();
+    items.push_back(ic);
+
   }
-  else if (nc.type == "MAP") 
+  else if (ic.type == "MAP") 
   {
-    temoto_context_manager::MapContainer rospl = 
-      std::dynamic_pointer_cast<emr::ROSPayload<temoto_context_manager::MapContainer>>(currentItem.getPayload())
-        ->getPayload();
-    nc.serialized_container = temoto_core::serializeROSmsg(rospl);
-    items.push_back(nc);
+    std::shared_ptr<RosPayload<temoto_context_manager::MapContainer>> rospl = 
+      std::dynamic_pointer_cast<RosPayload<temoto_context_manager::MapContainer>>(currentItem.getPayload());
+    ic.serialized_container = temoto_core::serializeROSmsg(rospl->getPayload());
+    ic.last_modified = rospl->getTime();
+    ic.maintainer = rospl->getMaintainer();
+    items.push_back(ic);
+
   }
-  else if (nc.type == "COMPONENT") 
+  else if (ic.type == "COMPONENT") 
   {
-    temoto_context_manager::ComponentContainer rospl = 
-      std::dynamic_pointer_cast<emr::ROSPayload<temoto_context_manager::ComponentContainer>>(currentItem.getPayload())
-        ->getPayload();
-    nc.serialized_container = temoto_core::serializeROSmsg(rospl);
-    items.push_back(nc);
+    std::shared_ptr<RosPayload<temoto_context_manager::ComponentContainer>> rospl = 
+      std::dynamic_pointer_cast<RosPayload<temoto_context_manager::ComponentContainer>>(currentItem.getPayload());
+    ic.serialized_container = temoto_core::serializeROSmsg(rospl->getPayload());
+    ic.last_modified = rospl->getTime();
+    ic.maintainer = rospl->getMaintainer();
+    items.push_back(ic);
+
   }
   else
   {
-    // TEMOTO_ERROR_STREAM("Wrong type of container @ EMRtoVectorHelper: " << nc.type);
+    // TEMOTO_ERROR_STREAM("Wrong type of container @ EmrToVectorHelper: " << ic.type);
     return;
   }
 
   std::vector<std::shared_ptr<emr::Item>> children = currentItem.getChildren();
   for (uint32_t i = 0; i < children.size(); i++)
   {
-    EMRtoVectorHelper(*children[i], items);
+    EmrToVectorHelper(*children[i], items);
   }
 }
 
@@ -152,16 +161,17 @@ void EMR_ROS_interface::EMRtoVectorHelper(const emr::Item& currentItem, std::vec
  * 
  * @param root 
  */
-void EMR_ROS_interface::traverseEMR(const emr::Item& root)
+void EmrRosInterface::traverseEmr(const emr::Item& root)
 {
   // TEMOTO_DEBUG_STREAM(root.getPayload()->getName());
-  std::shared_ptr<emr::ROSPayload<temoto_context_manager::ObjectContainer>> msgptr = std::dynamic_pointer_cast<emr::ROSPayload<temoto_context_manager::ObjectContainer>>(root.getPayload());
+  std::shared_ptr<RosPayload<temoto_context_manager::ObjectContainer>> msgptr = 
+    std::dynamic_pointer_cast<RosPayload<temoto_context_manager::ObjectContainer>>(root.getPayload());
   // TEMOTO_DEBUG_STREAM("tag_id: " << msgptr->getPayload().tag_id);
   std::vector<std::shared_ptr<emr::Item>> children = root.getChildren();
   for (uint32_t i = 0; i < children.size(); i++)
   {
-    traverseEMR(*children[i]);
+    traverseEmr(*children[i]);
   }
 }
 
-} // namespace EMR_ROS_Interface
+} // namespace emr_ros_interface

@@ -13,7 +13,7 @@
 
 #include "temoto_nlp/task_manager.h"
 #include "temoto_component_manager/component_manager_services.h"
-#include "temoto_context_manager/EMR_ROS_interface.h"
+#include "temoto_context_manager/emr_ros_interface.h"
 
 namespace temoto_context_manager
 {
@@ -48,19 +48,11 @@ private:
    */
   void unloadTrackObjectCb(TrackObject::Request& req, TrackObject::Response& res);
 
-  void EMRSyncCb(const temoto_core::ConfigSync& msg, const Items& payload);
+  void emrSyncCb(const temoto_core::ConfigSync& msg, const Items& payload);
   
-  bool updateEMRCb(UpdateEMR::Request& req, UpdateEMR::Response& res);
+  bool updateEmrCb(UpdateEmr::Request& req, UpdateEmr::Response& res);
 
   void trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload);
-
-  template<class Container>
-  Container getContainer(std::shared_ptr<emr::Item> itemptr)
-  {
-    return std::dynamic_pointer_cast<emr::ROSPayload<Container>>
-      (itemptr->getPayload())
-        ->getPayload();
-  }
 
   /**
    * @brief Update the EMR structure with new information
@@ -69,13 +61,13 @@ private:
    * @param from_other_manager 
    * @return Items that could not be added
    */
-  Items updateEMR(const Items & items_to_add, bool from_other_manager, bool update_time=false);
+  Items updateEmr(const Items & items_to_add, bool from_other_manager, bool update_time=false);
   
   /**
    * @brief Advertise the EMR state through the config syncer
    * 
    */
-  void advertiseEMR();
+  void advertiseEmr();
 
   ObjectPtr findObject(std::string object_name);
 
@@ -117,11 +109,11 @@ private:
 
   emr::EnvironmentModelRepository env_model_repository_;
 
-  EMR_ROS_Interface::EMR_ROS_interface emr_interface{env_model_repository_};
+  emr_ros_interface::EmrRosInterface emr_interface{env_model_repository_};
 
   // Configuration syncer that manages external resource descriptions and synchronizes them
   // between all other (context) managers
-  temoto_core::rmp::ConfigSynchronizer<ContextManager, Items> EMR_syncer_;
+  temoto_core::rmp::ConfigSynchronizer<ContextManager, Items> emr_syncer_;
 
   temoto_core::rmp::ConfigSynchronizer<ContextManager, std::string> tracked_objects_syncer_;
 

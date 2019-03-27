@@ -5,7 +5,7 @@
 #include "temoto_core/rmp/resource_manager_services.h"
 #include "temoto_context_manager/GetNumber.h"
 #include "temoto_context_manager/TrackObject.h"
-#include "temoto_context_manager/UpdateEMR.h"
+#include "temoto_context_manager/UpdateEmr.h"
 #include "temoto_context_manager/GetEMRItem.h"
 
 namespace temoto_context_manager
