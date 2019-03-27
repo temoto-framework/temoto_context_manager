@@ -8,6 +8,6 @@ string topic
 string[] detection_methods
 
 # Name of EMR parent node
-string parent = ""
+string parent
 
 time last_modified

@@ -2,7 +2,7 @@
 string name
 
 # REQUIRED - Name of EMR parent item
-string parent = ""
+string parent
 
 # REQUIRED - Type of Component as defined in components.yaml
 string component_type

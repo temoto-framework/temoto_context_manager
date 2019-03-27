@@ -21,6 +21,7 @@ std::vector<temoto_context_manager::ItemContainer> EMR_ROS_interface::updateEMR(
     }
     else if (item_container.type == "MAP") 
     {
+      std::cout << "Map is being added" << std::endl;
       // Deserialize into an temoto_context_manager::MapContainer object and add to EMR
       temoto_context_manager::MapContainer mc = 
         temoto_core::deserializeROSmsg<temoto_context_manager::MapContainer>(item_container.serialized_container);

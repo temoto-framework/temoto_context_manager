@@ -153,7 +153,7 @@ std::vector<std::string> ContextManager::getItemDetectionMethods(const std::stri
   else if (type == "MAP") 
   {
     MapContainer map = getContainer<MapContainer>(itemptr);
-    return map.detection_methods; 
+    return map.detection_methods;
   }
   else if (type == "COMPONENT")
   {
@@ -347,8 +347,8 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     // Pass the topic container so that the action can access the pipe
     sub_1.addData("pointer", boost::any_cast<temoto_core::TopicContainer>(pipe_topics));
 
-    // Pass a pointer to EMR, which will be used to access EMR without ROS messaging overhead
-    sub_1.addData("pointer", boost::any_cast<emr::EnvironmentModelRepository*>(&env_model_repository_));
+    // Pass a pointer to EMR interface, which will be used to access EMR without ROS messaging overhead
+    sub_1.addData("pointer", boost::any_cast<EMR_ROS_Interface::EMR_ROS_interface*>(&emr_interface));
 
     subjects.push_back(sub_0);
     subjects.push_back(sub_1);
