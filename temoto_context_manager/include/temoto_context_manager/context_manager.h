@@ -10,10 +10,11 @@
 #include "temoto_context_manager/context_manager_services.h"
 #include "temoto_context_manager/context_manager_containers.h"
 #include "temoto_context_manager/env_model_repository.h"
+#include "temoto_context_manager/emr_ros_interface.h"
+#include "temoto_context_manager/emr_item_to_component_link.h"
 
 #include "temoto_nlp/task_manager.h"
 #include "temoto_component_manager/component_manager_services.h"
-#include "temoto_context_manager/emr_ros_interface.h"
 
 namespace temoto_context_manager
 {
@@ -30,22 +31,8 @@ public:
 
 private:
 
-  void loadGetNumberCb(GetNumber::Request& req, GetNumber::Response& res);
-
-  void unloadGetNumberCb(GetNumber::Request& req, GetNumber::Response& res);
-
-  /**
-   * @brief loadTrackObjectCb
-   * @param req
-   * @param res
-   */
   void loadTrackObjectCb(TrackObject::Request& req, TrackObject::Response& res);
 
-  /**
-   * @brief unloadTrackObjectCb
-   * @param req
-   * @param res
-   */
   void unloadTrackObjectCb(TrackObject::Request& req, TrackObject::Response& res);
 
   void emrSyncCb(const temoto_core::ConfigSync& msg, const Items& payload);
@@ -83,7 +70,7 @@ private:
 
   std::vector<std::string> getItemDetectionMethods(const std::string& name);
 
-
+  void startComponentToEMRLinker();
 
   // Resource manager for handling servers and clients
   temoto_core::rmp::ResourceManager<ContextManager> resource_manager_1_;
@@ -117,12 +104,13 @@ private:
 
   temoto_core::rmp::ConfigSynchronizer<ContextManager, std::string> tracked_objects_syncer_;
 
-  temoto_nlp::TaskManager tracker_action_engine_;
+  temoto_nlp::TaskManager action_engine_;
 
   std::map<std::string, temoto_core::Reliability> detection_method_history_;
 
   std::pair<int, std::string> active_detection_method_;
 };
+
 } // temoto_context_manager namespace
 
 #endif

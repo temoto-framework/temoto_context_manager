@@ -20,7 +20,6 @@
 #include "temoto_nlp/base_task/base_task.h"    // The base task
 #include <class_loader/class_loader.h>  // Class loader includes
 
-#include "temoto_context_manager/context_manager_interface.h"
 #include "temoto_core/common/topic_container.h"
 #include "temoto_context_manager/env_model_repository.h"
 
@@ -69,13 +68,11 @@ std::vector<temoto_nlp::Subject> getSolution()
 
 private:
 
-/* * * * * * * * * * * * * * * * * * 
- *                                 *
- * ===> YOUR CUSTOM VARIABLES <=== *
- *       AND FUNCTIONS HERE        *
- *                                 *
- * * * * * * * * * * * * * * * * * */
-
+ros::NodeHandle nh_;
+ros::Subscriber artag_subscriber_;
+ros::Publisher tracked_object_publisher_;
+uint32_t tag_id_;
+//temoto_context_manager::ObjectPtr tracked_object_;
     
 /*
  * Interface 0 body
@@ -94,13 +91,35 @@ void startInterface_0()
     boost::any_cast<emr::EnvironmentModelRepository*>(what_1_in.data_[2].value);
 
   TEMOTO_INFO_STREAM("starting to track object: " << object_name);
-  TEMOTO_INFO_STREAM("Receiving informantion on topics: " << object_name);
+  TEMOTO_INFO_STREAM("Receiving informantion on topics:");
 
   for (auto topic_pair : topic_container.getOutputTopics())
   {
     TEMOTO_INFO_STREAM("* type: " << topic_pair.first << "; topic: " << topic_pair.second);
   }
 }
+
+// void artagDataCb(ar_track_alvar_msgs::AlvarMarkers msg)
+// {
+
+//   // Look for the marker with the required tag id
+//   for (auto& artag : msg.markers)
+//   {
+//     if (artag.id == tag_id_)
+//     {
+//       TEMOTO_INFO_STREAM( "AR tag with id = " << tag_id_ << " found");
+
+//       // Update the pose of the object
+//       tracked_object_->pose.pose = artag.pose.pose;
+//       tracked_object_->pose.header = artag.header;
+
+//       // Publish the tracked object
+//       tracked_object_publisher_.publish(*tracked_object_);
+
+//       // TODO: do something reasonable if multiple markers with the same tag id are present
+//     }
+//   }
+// }
 
 }; // TaTrackArtag class
 

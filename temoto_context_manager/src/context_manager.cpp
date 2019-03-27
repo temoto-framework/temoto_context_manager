@@ -15,16 +15,11 @@ ContextManager::ContextManager()
   , resource_manager_2_(srv_name::MANAGER_2, this)
   , tracked_objects_syncer_(srv_name::MANAGER, srv_name::SYNC_TRACKED_OBJECTS_TOPIC, &ContextManager::trackedObjectsSyncCb, this)
   , emr_syncer_(srv_name::MANAGER, srv_name::SYNC_OBJECTS_TOPIC, &ContextManager::emrSyncCb, this)
-  , tracker_action_engine_(this, false, ros::package::getPath(ROS_PACKAGE_NAME) + "/config/action_dst.yaml")
+  , action_engine_(this, false, ros::package::getPath(ROS_PACKAGE_NAME) + "/config/action_dst.yaml")
 {
   /*
    * Start the servers
    */
-
-  // TODO: This is just an example service
-  resource_manager_1_.addServer<GetNumber>( srv_name::GET_NUMBER_SERVER
-                                                    , &ContextManager::loadGetNumberCb
-                                                    , &ContextManager::unloadGetNumberCb);
 
   // Object tracking service
   resource_manager_1_.addServer<TrackObject>(srv_name::TRACK_OBJECT_SERVER
@@ -40,28 +35,11 @@ ContextManager::ContextManager()
   
   // Request remote EMR configurations
   emr_syncer_.requestRemoteConfigs();
+
+  // Start the component-to-EMR linker actions
+  startComponentToEMRLinker();
   
   TEMOTO_INFO("Context Manager is ready.");
-}
-
-/*
- * Implementation of the GetNumber service
- */ 
-void ContextManager::loadGetNumberCb( GetNumber::Request& req
-                                    , GetNumber::Response& res)
-{
-  TEMOTO_INFO_STREAM("Received a request to load number '" << req.requested_int << "'");
-  res.responded_int = req.requested_int;
-}
-
-/*
- * Implementation of the unload GetNumber service
- */ 
-void ContextManager::unloadGetNumberCb( GetNumber::Request& req
-                                      , GetNumber::Response& res)
-{
-  (void)res; // Suppress "unused parameter" compiler warnings
-  TEMOTO_INFO_STREAM("Received a request to UNload number '" << req.requested_int << "'");
 }
 
 /*
@@ -164,6 +142,7 @@ std::vector<std::string> ContextManager::getItemDetectionMethods(const std::stri
     throw CREATE_ERROR(temoto_core::error::Code::INVALID_CONTAINER_TYPE, "Item type not recognized!");
   }
 }
+
 /*
  * Find object
  */
@@ -180,7 +159,6 @@ ObjectPtr ContextManager::findObject(std::string object_name)
   // Throw an error if no objects were found
   throw CREATE_ERROR(temoto_core::error::Code::UNKNOWN_OBJECT, "The requested object is unknown");
 }
-
 
 /*
  * Callback for adding objects
@@ -366,7 +344,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     sft.printTaskDescriptors(root_node);
 
     // Execute the SFT
-    tracker_action_engine_.executeSFT(std::move(sft));
+    action_engine_.executeSFT(std::move(sft));
 
     // Put the object into the list of tracked objects. This is used later
     // for stopping the tracker
@@ -382,6 +360,14 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
   {
     throw FORWARD_ERROR(error_stack);
   }
+}
+
+/*
+ * startComponentToEMRLinker
+ */ 
+void ContextManager::startComponentToEMRLinker()
+{
+  
 }
 
 /*
@@ -415,7 +401,7 @@ void ContextManager::unloadTrackObjectCb(TrackObject::Request& req,
                         << tracked_object << "'");
 
     // Stop tracking the object
-    tracker_action_engine_.stopTask("", tracked_object);
+    action_engine_.stopTask("", tracked_object);
 
     // Erase the object from the map of tracked objects
     m_tracked_objects_local_.erase(res.rmp.resource_id);

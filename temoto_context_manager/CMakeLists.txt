@@ -67,6 +67,7 @@ add_executable(temoto_context_manager
   src/context_manager_containers.cpp
   src/env_model_repository.cpp
   src/emr_ros_interface.cpp
+  src/emr_item_to_component_link.cpp
 )
 
 add_dependencies(temoto_context_manager
