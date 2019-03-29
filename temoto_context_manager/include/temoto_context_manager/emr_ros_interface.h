@@ -72,7 +72,7 @@ public:
 class EmrRosInterface
 {
 public:
-  EmrRosInterface(emr::EnvironmentModelRepository& emr) : env_model_repository_(emr) 
+  EmrRosInterface(emr::EnvironmentModelRepository& emr, std::string identifier) : env_model_repository_(emr), identifier_(identifier) 
   {
     tf_timer_ = nh_.createTimer(ros::Duration(0.1), &EmrRosInterface::emr_tf_callback, this);
   }
@@ -135,6 +135,7 @@ public:
   void EmrToVectorHelper(const emr::Item& currentItem, std::vector<temoto_context_manager::ItemContainer>& items);
 private:
   emr::EnvironmentModelRepository& env_model_repository_;
+  std::string identifier_;
   ros::NodeHandle nh_;
   ros::Timer tf_timer_;
   tf::TransformBroadcaster tf_broadcaster;

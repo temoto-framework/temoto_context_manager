@@ -25,11 +25,15 @@ void EmrRosInterface::emr_tf_callback(const ros::TimerEvent&)
     std::string type = item_entry.second->getPayload()->getType();
     if (type == "OBJECT")
     {
+      // If maintainer is another instance, don't publish
+      if (getRosPayloadPtr<temoto_context_manager::ObjectContainer>(item_entry.first)->getMaintainer() != identifier_) continue;
       temoto_context_manager::ObjectContainer oc = getContainer<temoto_context_manager::ObjectContainer>(item_entry.first);
       publish_container_tf(type, oc);
     }
     else if (type == "MAP")
     {
+      // If maintainer is another instance, don't publish
+      if (getRosPayloadPtr<temoto_context_manager::MapContainer>(item_entry.first)->getMaintainer() != identifier_) continue;
       temoto_context_manager::MapContainer mc = getContainer<temoto_context_manager::MapContainer>(item_entry.first);
       publish_container_tf(type, mc);
     }
