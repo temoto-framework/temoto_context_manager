@@ -2,12 +2,14 @@
 #define TEMOTO_EMR_ROS_INTERFACE_H
 
 #include <algorithm>
+#include <tf/transform_broadcaster.h>
+#include <ros/ros.h>
 
 #include "temoto_context_manager/context_manager_containers.h"
 #include "temoto_context_manager/env_model_repository.h"
 
-#include "ros/package.h"
 #include "temoto_core/common/ros_serialization.h"
+#include "ros/package.h"
 
 namespace emr_ros_interface
 {
@@ -69,10 +71,11 @@ public:
 
 class EmrRosInterface
 {
-private:
-    emr::EnvironmentModelRepository& env_model_repository_;
 public:
-    EmrRosInterface(emr::EnvironmentModelRepository& emr) : env_model_repository_(emr) {}
+  EmrRosInterface(emr::EnvironmentModelRepository& emr) : env_model_repository_(emr) 
+  {
+    tf_timer_ = nh_.createTimer(ros::Duration(0.1), &EmrRosInterface::emr_tf_callback, this);
+  }
 
   template<class Container>
   Container getContainer(const std::string name)
@@ -130,6 +133,15 @@ public:
    * @param items 
    */
   void EmrToVectorHelper(const emr::Item& currentItem, std::vector<temoto_context_manager::ItemContainer>& items);
+private:
+  emr::EnvironmentModelRepository& env_model_repository_;
+  ros::NodeHandle nh_;
+  ros::Timer tf_timer_;
+  tf::TransformBroadcaster tf_broadcaster;
+  
+  void emr_tf_callback(const ros::TimerEvent&);
+  template <class Container>
+  void publish_container_tf(const std::string& type, const Container& container);
 };
 
 } // namespace emr_ros_interface

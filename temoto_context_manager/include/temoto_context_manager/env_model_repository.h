@@ -108,6 +108,7 @@ class EnvironmentModelRepository
 private:
   std::map<std::string, std::shared_ptr<Item>> items;
 public:
+  const std::map<std::string, std::shared_ptr<Item>>& getItems() {return items;}
   /**
    * @brief Get the root items of the structure
    * 
