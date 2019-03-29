@@ -37,7 +37,8 @@ ContextManager::ContextManager()
   emr_syncer_.requestRemoteConfigs();
 
   // Start the component-to-EMR linker actions
-  startComponentToEMRLinker();
+  TEMOTO_INFO("Starting the component-to-emr-item linker ...");
+  //startComponentToEmrLinker();
   
   TEMOTO_INFO("Context Manager is ready.");
 }
@@ -365,9 +366,40 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
 /*
  * startComponentToEMRLinker
  */ 
-void ContextManager::startComponentToEMRLinker()
+void ContextManager::startComponentToEmrLinker()
 {
-  
+  /*
+   * Action related stuff up ahead: A semantic frame is manually created. Based on that SF
+   * a SF tree is created, given that an action implementation, that corresponds to the
+   * manually created SF, exists. The tracker action is invoked  and it continues
+   * running in the background until its ordered to stop.
+   */
+
+  std::string action = "compose";
+  temoto_nlp::Subjects subjects;
+
+  // Subject that will contain the name of the tracked object.
+  // Necessary when the tracker has to be stopped
+  temoto_nlp::Subject sub_0("what", "emr");
+  sub_0.addData("pointer", boost::any_cast<emr_ros_interface::EmrRosInterface*>(&emr_interface));
+
+  // Subject that will contain the data necessary for the specific tracker
+  temoto_nlp::Subject sub_1("what", "emr-to-component registry");
+  sub_1.addData("pointer", boost::any_cast<ComponentToEmrRegistry*>(&component_to_emr_registry_));
+
+  subjects.push_back(sub_0);
+  subjects.push_back(sub_1);
+
+  // Create a SF
+  std::vector<temoto_nlp::TaskDescriptor> task_descriptors;
+  task_descriptors.emplace_back(action, subjects);
+  task_descriptors[0].setActionStemmed(action);
+
+  // Create a sematic frame tree
+  temoto_nlp::TaskTree sft = temoto_nlp::SFTBuilder::build(task_descriptors);
+
+  // Execute the SFT
+  action_engine_.executeSFT(std::move(sft));
 }
 
 /*

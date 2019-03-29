@@ -70,7 +70,7 @@ private:
 
   std::vector<std::string> getItemDetectionMethods(const std::string& name);
 
-  void startComponentToEMRLinker();
+  void startComponentToEmrLinker();
 
   // Resource manager for handling servers and clients
   temoto_core::rmp::ResourceManager<ContextManager> resource_manager_1_;
@@ -105,6 +105,8 @@ private:
   temoto_core::rmp::ConfigSynchronizer<ContextManager, std::string> tracked_objects_syncer_;
 
   temoto_nlp::TaskManager action_engine_;
+
+  ComponentToEmrRegistry component_to_emr_registry_;
 
   std::map<std::string, temoto_core::Reliability> detection_method_history_;
 
