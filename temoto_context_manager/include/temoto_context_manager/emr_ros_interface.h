@@ -19,18 +19,17 @@ class RosPayload : public emr::PayloadEntry
 {
 private:
   RosMsg payload_;
-  ros::Time last_modified;
   std::string maintainer_;
 public:
   void updateTime()
   {
-    last_modified = ros::Time::now();
+    payload_.pose.header.stamp = ros::Time::now();
   }
   void updateTime(ros::Time new_time)
   {
-    last_modified = new_time;
+    payload_.pose.header.stamp = new_time;
   }
-  ros::Time getTime() {return last_modified;}
+  ros::Time getTime() {return payload_.pose.header.stamp;}
 
   std::string getMaintainer() {return maintainer_;}
 
@@ -47,7 +46,7 @@ public:
   {
     return payload_.name;
   }
-  const RosMsg& getPayload() const {return payload_;};
+  RosMsg getPayload() const {return payload_;};
   /**
    * @brief Set the Payload object
    * 
@@ -56,10 +55,6 @@ public:
   void setPayload(RosMsg & payload) {payload_ = payload;};
 
   RosPayload(RosMsg payload) : payload_(payload)
-  {
-  }
-  RosPayload(RosMsg payload, ros::Time last_modified, std::string maintainer) 
-    : payload_(payload), last_modified(last_modified), maintainer_(maintainer)
   {
   }
   RosPayload(RosMsg payload, std::string maintainer) 
@@ -83,11 +78,17 @@ public:
     return getRosPayloadPtr<Container>(name)->getPayload();
   }
   template<class Container>
+  Container getContainerPtr(const std::string name)
+  {
+    return std::make_shared<Container>(getRosPayloadPtr<Container>(name)->getPayload());
+  }
+  template<class Container>
   std::shared_ptr<RosPayload<Container>> getRosPayloadPtr(const std::string& name)
   {
     return std::dynamic_pointer_cast<RosPayload<Container>>
       (env_model_repository_.getItemByName(name)->getPayload());
   }
+  bool hasItem(const std::string& name) {return env_model_repository_.hasItem(name);}
 
   /**
    * @brief Update the EMR structure with new information
