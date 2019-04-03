@@ -22,7 +22,8 @@
 
 #include "temoto_core/common/topic_container.h"
 #include "temoto_context_manager/emr_ros_interface.h"
-#include "ros/ros.h"
+#include "tf/transform_listener.h"
+#include "ar_track_alvar_msgs/AlvarMarkers.h"
 
 /* 
  * ACTION IMPLEMENTATION of TaTrackArtag 
@@ -74,6 +75,7 @@ ros::Subscriber artag_subscriber_;
 ros::Publisher tracked_object_publisher_;
 uint32_t tag_id_;
 temoto_context_manager::ObjectPtr tracked_object_;
+tf::TransformListener tf_listener;
     
 /*
  * Interface 0 body
@@ -90,7 +92,7 @@ void startInterface_0()
   temoto_core::TopicContainer topic_container = boost::any_cast<temoto_core::TopicContainer>(what_1_in.data_[1].value);
   emr_ros_interface::EmrRosInterface* emr_interface_ptr = 
     boost::any_cast<emr_ros_interface::EmrRosInterface*>(what_1_in.data_[2].value);
-  // tracked_object_ = emr_interface_ptr->getContainerPtr<temoto_context_manager::ObjectContainer>(object_name);
+  tracked_object_ = emr_interface_ptr->getContainerPtr<temoto_context_manager::ObjectContainer>(object_name);
 
   TEMOTO_INFO_STREAM("starting to track object: " << object_name);
   TEMOTO_INFO_STREAM("Receiving information on topics:");
@@ -101,27 +103,28 @@ void startInterface_0()
   }
 }
 
-// void artagDataCb(ar_track_alvar_msgs::AlvarMarkers msg)
-// {
+void artagDataCb(ar_track_alvar_msgs::AlvarMarkers msg)
+{
 
-//   // Look for the marker with the required tag id
-//   for (auto& artag : msg.markers)
-//   {
-//     if (artag.id == tag_id_)
-//     {
-//       TEMOTO_INFO_STREAM( "AR tag with id = " << tag_id_ << " found");
+  // Look for the marker with the required tag id
+  for (auto& artag : msg.markers)
+  {
+    if (artag.id == tag_id_)
+    {
+      TEMOTO_INFO_STREAM( "AR tag with id = " << tag_id_ << " found");
 
-//       // Update the pose of the object
-//       tracked_object_->pose.pose = artag.pose.pose;
-//       tracked_object_->pose.header = artag.header;
+      // Update the pose of the object
+      // tracked_object_->pose.pose = artag.pose.pose;
+      tf_listener.transformPose(tracked_object_->parent, artag.pose, tracked_object_->pose);
+      tracked_object_->pose.header = artag.header;
 
-//       // Publish the tracked object
-//       tracked_object_publisher_.publish(*tracked_object_);
+      // Publish the tracked object
+      tracked_object_publisher_.publish(*tracked_object_);
 
-//       // TODO: do something reasonable if multiple markers with the same tag id are present
-//     }
-//   }
-// }
+      // TODO: do something reasonable if multiple markers with the same tag id are present
+    }
+  }
+}
 
 }; // TaTrackArtag class
 
