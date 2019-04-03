@@ -21,7 +21,8 @@
 #include <class_loader/class_loader.h>  // Class loader includes
 
 #include "temoto_core/common/topic_container.h"
-#include "temoto_context_manager/env_model_repository.h"
+#include "temoto_context_manager/emr_ros_interface.h"
+#include "ros/ros.h"
 
 /* 
  * ACTION IMPLEMENTATION of TaTrackArtag 
@@ -72,7 +73,7 @@ ros::NodeHandle nh_;
 ros::Subscriber artag_subscriber_;
 ros::Publisher tracked_object_publisher_;
 uint32_t tag_id_;
-//temoto_context_manager::ObjectPtr tracked_object_;
+temoto_context_manager::ObjectPtr tracked_object_;
     
 /*
  * Interface 0 body
@@ -87,11 +88,12 @@ void startInterface_0()
   std::string  what_1_word_in = what_1_in.words_[0];
   std::string  what_1_data_0_in = boost::any_cast<std::string>(what_1_in.data_[0].value);
   temoto_core::TopicContainer topic_container = boost::any_cast<temoto_core::TopicContainer>(what_1_in.data_[1].value);
-  emr::EnvironmentModelRepository* emr_ptr = 
-    boost::any_cast<emr::EnvironmentModelRepository*>(what_1_in.data_[2].value);
+  emr_ros_interface::EmrRosInterface* emr_interface_ptr = 
+    boost::any_cast<emr_ros_interface::EmrRosInterface*>(what_1_in.data_[2].value);
+  // tracked_object_ = emr_interface_ptr->getContainerPtr<temoto_context_manager::ObjectContainer>(object_name);
 
   TEMOTO_INFO_STREAM("starting to track object: " << object_name);
-  TEMOTO_INFO_STREAM("Receiving informantion on topics:");
+  TEMOTO_INFO_STREAM("Receiving information on topics:");
 
   for (auto topic_pair : topic_container.getOutputTopics())
   {
