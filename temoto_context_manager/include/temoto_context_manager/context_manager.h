@@ -96,7 +96,7 @@ private:
 
   emr::EnvironmentModelRepository env_model_repository_;
 
-  emr_ros_interface::EmrRosInterface emr_interface{env_model_repository_};
+  emr_ros_interface::EmrRosInterface emr_interface{env_model_repository_, temoto_core::common::getTemotoNamespace()};
 
   // Configuration syncer that manages external resource descriptions and synchronizes them
   // between all other (context) managers

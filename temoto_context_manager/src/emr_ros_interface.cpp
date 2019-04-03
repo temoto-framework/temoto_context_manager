@@ -2,6 +2,44 @@
 
 namespace emr_ros_interface
 {
+template <class Container>
+void EmrRosInterface::publish_container_tf(const std::string& type, const Container& container)
+{
+  tf::Transform transform;
+  transform.setOrigin(tf::Vector3(container.pose.pose.position.x,
+                                  container.pose.pose.position.y,
+                                  container.pose.pose.position.z));
+  transform.setRotation(tf::Quaternion(container.pose.pose.orientation.x,
+                                      container.pose.pose.orientation.y,
+                                      container.pose.pose.orientation.z,
+                                      container.pose.pose.orientation.w));
+  tf_broadcaster.sendTransform(tf::StampedTransform(transform, container.pose.header.stamp, container.parent, container.name));
+}
+void EmrRosInterface::emr_tf_callback(const ros::TimerEvent&)
+{
+  for (auto const& item_entry : env_model_repository_.getItems())
+  {
+    // If root node, tf can not be published
+    if (item_entry.second->getParent().expired()) continue;
+
+    std::string type = item_entry.second->getPayload()->getType();
+    if (type == "OBJECT")
+    {
+      // If maintainer is another instance, don't publish
+      if (getRosPayloadPtr<temoto_context_manager::ObjectContainer>(item_entry.first)->getMaintainer() != identifier_) continue;
+      temoto_context_manager::ObjectContainer oc = getContainer<temoto_context_manager::ObjectContainer>(item_entry.first);
+      publish_container_tf(type, oc);
+    }
+    else if (type == "MAP")
+    {
+      // If maintainer is another instance, don't publish
+      if (getRosPayloadPtr<temoto_context_manager::MapContainer>(item_entry.first)->getMaintainer() != identifier_) continue;
+      temoto_context_manager::MapContainer mc = getContainer<temoto_context_manager::MapContainer>(item_entry.first);
+      publish_container_tf(type, mc);
+    }
+  }
+}
+
 std::vector<temoto_context_manager::ItemContainer> EmrRosInterface::updateEmr(
                   const std::vector<temoto_context_manager::ItemContainer>& items_to_add, 
                   bool update_time)
@@ -20,7 +58,6 @@ std::vector<temoto_context_manager::ItemContainer> EmrRosInterface::updateEmr(
     }
     else if (item_container.type == "MAP") 
     {
-      std::cout << "Map is being added" << std::endl;
       // Deserialize into an temoto_context_manager::MapContainer object and add to EMR
       temoto_context_manager::MapContainer mc = 
         temoto_core::deserializeROSmsg<temoto_context_manager::MapContainer>(item_container.serialized_container);
@@ -59,13 +96,13 @@ bool EmrRosInterface::addOrUpdateEmrItem(
   // Move these to the context manager interface maybe? TBD
   if (name == "") 
   {
-    // TEMOTO_ERROR_STREAM("Empty string not allowed as EMR item name!");
+    ROS_ERROR_STREAM("Empty string not allowed as EMR item name!");
     return false;
   }
   // Check if the parent exists
   if ((!parent.empty()) && (!env_model_repository_.hasItem(parent))) 
   {
-    // TEMOTO_ERROR_STREAM("No parent with name " << parent << " found in EMR!");
+    ROS_ERROR_STREAM("No parent with name " << parent << " found in EMR!");
     return false;
   }
   
@@ -86,7 +123,7 @@ bool EmrRosInterface::addOrUpdateEmrItem(
       if (update_time) rospl.updateTime();
       std::shared_ptr<RosPayload<Container>> plptr = std::make_shared<RosPayload<Container>>(rospl);
       env_model_repository_.updateItem(name, plptr);
-      // TEMOTO_INFO_STREAM("Updated item: " << name);
+      ROS_INFO_STREAM("Updated item: " << name);
     }
   }
   return true;

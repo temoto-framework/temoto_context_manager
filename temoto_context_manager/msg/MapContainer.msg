@@ -9,3 +9,5 @@ string[] detection_methods
 
 # Name of EMR parent node
 string parent
+
+geometry_msgs/PoseStamped pose

@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   shape_msgs
   visualization_msgs
   diagnostic_msgs
+  tf
   tf2
   tf2_ros
   tf2_geometry_msgs
