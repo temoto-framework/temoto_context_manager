@@ -78,7 +78,7 @@ public:
     return getRosPayloadPtr<Container>(name)->getPayload();
   }
   template<class Container>
-  Container getContainerPtr(const std::string name)
+  std::shared_ptr<Container> getContainerPtr(const std::string name)
   {
     return std::make_shared<Container>(getRosPayloadPtr<Container>(name)->getPayload());
   }
