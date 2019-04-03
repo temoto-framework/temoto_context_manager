@@ -111,13 +111,12 @@ bool EmrRosInterface::addOrUpdateEmrItem(
   {
     // Add the new item
     rospl.setMaintainer(ic.maintainer);
-    rospl.updateTime(ic.last_modified);
     std::shared_ptr<RosPayload<Container>> plptr = std::make_shared<RosPayload<Container>>(rospl);
     env_model_repository_.addItem(name, parent, plptr);
   }
   else
   {
-    if (ic.last_modified > getRosPayloadPtr<Container>(name)->getTime()) 
+    if (rospl.getTime() > getRosPayloadPtr<Container>(name)->getTime()) 
     {
       // Update the item information
       if (update_time) rospl.updateTime();
@@ -155,7 +154,6 @@ void EmrRosInterface::EmrToVectorHelper(const emr::Item& currentItem, std::vecto
     std::shared_ptr<RosPayload<temoto_context_manager::ObjectContainer>> rospl = 
       std::dynamic_pointer_cast<RosPayload<temoto_context_manager::ObjectContainer>>(currentItem.getPayload());
     ic.serialized_container = temoto_core::serializeROSmsg(rospl->getPayload());
-    ic.last_modified = rospl->getTime();
     ic.maintainer = rospl->getMaintainer();
     items.push_back(ic);
 
@@ -165,7 +163,6 @@ void EmrRosInterface::EmrToVectorHelper(const emr::Item& currentItem, std::vecto
     std::shared_ptr<RosPayload<temoto_context_manager::MapContainer>> rospl = 
       std::dynamic_pointer_cast<RosPayload<temoto_context_manager::MapContainer>>(currentItem.getPayload());
     ic.serialized_container = temoto_core::serializeROSmsg(rospl->getPayload());
-    ic.last_modified = rospl->getTime();
     ic.maintainer = rospl->getMaintainer();
     items.push_back(ic);
 
@@ -175,7 +172,6 @@ void EmrRosInterface::EmrToVectorHelper(const emr::Item& currentItem, std::vecto
     std::shared_ptr<RosPayload<temoto_context_manager::ComponentContainer>> rospl = 
       std::dynamic_pointer_cast<RosPayload<temoto_context_manager::ComponentContainer>>(currentItem.getPayload());
     ic.serialized_container = temoto_core::serializeROSmsg(rospl->getPayload());
-    ic.last_modified = rospl->getTime();
     ic.maintainer = rospl->getMaintainer();
     items.push_back(ic);
 
