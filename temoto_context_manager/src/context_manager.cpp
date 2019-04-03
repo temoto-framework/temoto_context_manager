@@ -28,7 +28,7 @@ ContextManager::ContextManager()
 
   // Register callback for status info
   resource_manager_1_.registerStatusCb(&ContextManager::statusCb1);
-  resource_manager_1_.registerStatusCb(&ContextManager::statusCb2);
+  resource_manager_2_.registerStatusCb(&ContextManager::statusCb2);
 
   // "Update EMR" server
   update_emr_server_ = nh_.advertiseService(srv_name::SERVER_UPDATE_EMR, &ContextManager::updateEmrCb, this);
@@ -180,14 +180,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
 {
   try
   {
-    /*
-     * Replace all spaces in the name with the underscore character because the now deprecated
-     * ObjectContainer API converted all object names into this format. 
-     */ 
-    std::string item_name_no_space = req.object_name;
-    std::replace(item_name_no_space.begin(), item_name_no_space.end(), ' ', '_');
-
-    TEMOTO_INFO_STREAM("Received a request to track an object named: '" << item_name_no_space << "'");
+    TEMOTO_INFO_STREAM("Received a request to track an object named: '" << req.object_name << "'");
 
     /*
      * Check if this object is already tracked in other instance of TeMoto. If thats the case, then
@@ -222,20 +215,14 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
 
     /*
      * Look if the requested object is described in the object database
-     * 
-     * M_TODO_hp: Find and return the item. It is up to you how you would
-     * like to return this information but the main thing is that we need
-     * to access the "detection_methods" field of a serialized container
      */ 
-    std::vector<std::string> detection_methods = getItemDetectionMethods(item_name_no_space);
+    std::vector<std::string> detection_methods = getItemDetectionMethods(req.object_name);
 
     /*
      * Start a pipe that provides the raw data for tracking the requested object
      */
     temoto_component_manager::LoadPipe load_pipe_msg;
     // addDetectionMethods(detection_methods);
-
-
     std::string selected_pipe;
 
     /*
@@ -246,7 +233,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     {
       try
       {
-        TEMOTO_INFO_STREAM("Trying to track the " << item_name_no_space
+        TEMOTO_INFO_STREAM("Trying to track the " << req.object_name
                            << " via '"<< pipe_category << "'");
 
         load_pipe_msg = temoto_component_manager::LoadPipe();
@@ -296,6 +283,8 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     pipe_topics.setOutputTopicsByKeyValue(load_pipe_msg.response.output_topics);
 
     // Topic where the information about the required object is going to be published.
+    std::string item_name_no_space = req.object_name;
+    std::replace(item_name_no_space.begin(), item_name_no_space.end(), ' ', '_');
     std::string tracked_object_topic = temoto_core::common::getAbsolutePath("object_tracker/" + item_name_no_space);
 
     /*
@@ -315,7 +304,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
 
     // Subject that will contain the name of the tracked object.
     // Necessary when the tracker has to be stopped
-    temoto_nlp::Subject sub_0("what", item_name_no_space);
+    temoto_nlp::Subject sub_0("what", req.object_name);
 
     // Subject that will contain the data necessary for the specific tracker
     temoto_nlp::Subject sub_1("what", selected_pipe);

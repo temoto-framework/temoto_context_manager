@@ -1,0 +1,12 @@
+<task action="compose">
+    <interface id="0" type="asynchronous">
+        <in>
+            <what word="emr">
+                <data datatype="pointer" />
+            </what>
+            <what word="emr-to-component registry">
+                <data datatype="pointer" />
+            </what>
+        </in>
+    </interface>
+</task>

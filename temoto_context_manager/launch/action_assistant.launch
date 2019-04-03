@@ -1,0 +1,6 @@
+<launch>
+  <include file="$(find temoto_action_assistant)/launch/action_assistant.launch">
+    <arg name="ta_path" value="$(find temoto_context_manager)/../actions" />
+  </include>
+</launch>
+
