@@ -11,8 +11,6 @@ string type
 
 string maintainer
 
-time last_modified
-
 # REQUIRED
 # Contains serialized container
 uint8[] serialized_container

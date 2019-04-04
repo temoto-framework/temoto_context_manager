@@ -150,8 +150,9 @@ public:
       }
       else
       {
+        container.pose.header.stamp = ros::Time::now(); 
         temoto_context_manager::ItemContainer nc;
-        nc.last_modified = ros::Time::now();
+        // nc.last_modified = ros::Time::now();
         nc.maintainer = temoto_core::common::getTemotoNamespace();
         // Check the type of the container
         if (std::is_same<Container, ObjectContainer>::value) 
