@@ -144,13 +144,14 @@ void startInterface_0()
   
     if (list_pipes_client_.call(list_pipes_srvmsg))
     {
+      temoto_context_manager::CategorizedPipes cat_pipes;
       pipe_info_msgs_ = list_pipes_srvmsg.response.pipe_infos;
       for(const auto& pi : pipe_info_msgs_)
       {
-        /*
-         * TODO: Add the pipes
-         */ 
+        cat_pipes[pi.pipe_type].push_back(pi);
       }
+      
+      c_emr_reg->setPipes(cat_pipes);
     }
     else
     {

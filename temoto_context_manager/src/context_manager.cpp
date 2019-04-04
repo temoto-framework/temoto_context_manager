@@ -231,12 +231,60 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
      */
     for (auto& pipe_category : detection_methods)
     {
+      // Check if this type of pipe exists in the registry
+      if (!component_to_emr_registry_.hasPipe(pipe_category))
+      {
+        continue;
+      }
+
       try
       {
+        temoto_component_manager::Pipe pipe_info_msg;
+        if (!component_to_emr_registry_.getPipeByType(pipe_category, pipe_info_msg))
+        {
+          continue;
+        }
+
         TEMOTO_INFO_STREAM("Trying to track the " << req.object_name
                            << " via '"<< pipe_category << "'");
+        load_pipe_msg = temoto_component_manager::LoadPipe(); // Clear the message
 
-        load_pipe_msg = temoto_component_manager::LoadPipe();
+        /*
+         * Check if any segments of this pipe require knowledge about any geometrical 
+         * parameters ,i.e., frames
+         */ 
+        for (unsigned int i=0; i<pipe_info_msg.segments.size(); i++)
+        {
+          const temoto_component_manager::PipeSegment& pipe_segment = pipe_info_msg.segments[i];
+          const std::vector<std::string>& required_params = pipe_segment.required_parameters;
+          if ( std::find(required_params.begin(), required_params.end(), "frame_id") == required_params.end())
+          {
+            continue;
+          }
+
+          temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
+          diagnostic_msgs::KeyValue frame_id_spec;
+
+          // Check if there are any emr-linked components that have the required type (e.g., 2D camera)
+          ComponentInfos component_infos = component_to_emr_registry_.hasLinks(pipe_segment.segment_type);
+          if (!component_infos.empty())
+          {
+            // TODO: Implement a selection metric
+            temoto_component_manager::Component& chosen_component = component_infos[0];
+            frame_id_spec.key = "frame_id";
+            frame_id_spec.value = chosen_component.component_name;
+            pipe_seg_spec.component_name = chosen_component.component_name; 
+            pipe_seg_spec.segment_index = i;
+            pipe_seg_spec.parameters.push_back(frame_id_spec);        
+            load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+          }
+          else
+          {
+            // If no emr-linked components were found
+          }
+        }
+
+        
         load_pipe_msg.request.pipe_category = pipe_category;
         resource_manager_1_.call<temoto_component_manager::LoadPipe>(temoto_component_manager::srv_name::MANAGER_2,
                                                                      temoto_component_manager::srv_name::PIPE_SERVER,
