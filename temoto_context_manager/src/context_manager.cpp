@@ -252,11 +252,16 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
         /*
          * Check if any segments of this pipe require knowledge about any geometrical 
          * parameters ,i.e., frames
-         */ 
+         */
+        std::vector<diagnostic_msgs::KeyValue*> spec_ptrs;
+        std::vector<diagnostic_msgs::KeyValue*> post_spec_ptrs;
+
         for (unsigned int i=0; i<pipe_info_msg.segments.size(); i++)
         {
           const temoto_component_manager::PipeSegment& pipe_segment = pipe_info_msg.segments[i];
           const std::vector<std::string>& required_params = pipe_segment.required_parameters;
+
+          // Check if "frame_id" is listed in the required parameters
           if ( std::find(required_params.begin(), required_params.end(), "frame_id") == required_params.end())
           {
             continue;
@@ -275,16 +280,76 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
             frame_id_spec.value = chosen_component.component_name;
             pipe_seg_spec.component_name = chosen_component.component_name; 
             pipe_seg_spec.segment_index = i;
-            pipe_seg_spec.parameters.push_back(frame_id_spec);        
+            pipe_seg_spec.parameters.push_back(frame_id_spec);
             load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+            load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
+
+            // TODO: That's the most horriffic beast i've ever created. Slay it asap. The idea is
+            // that instead of maintaining indexes to pipe segments, its simpler to keep the pointers
+            // to specific parameters
+            spec_ptrs.push_back(&(load_pipe_msg.request.pipe_segment_specifiers.back().parameters.back()));
           }
           else
           {
-            // If no emr-linked components were found
+            // If no emr-linked components were found then this is either an currently not defined
+            // EMR item, or this component does not have geometry, i.e., it's an algorithm
+            // Mark this component to be assessed after each segment has been checked
+            frame_id_spec.key = "frame_id";
+            pipe_seg_spec.segment_index = i;
+            pipe_seg_spec.parameters.push_back(frame_id_spec);       
+            load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+
+            // TODO: That's the most horriffic beast i've ever created. Slay it asap. The idea is
+            // that instead of maintaining indexes to pipe segments, its simpler to keep the pointers
+            // to specific parameters
+            post_spec_ptrs.push_back(&(load_pipe_msg.request.pipe_segment_specifiers.back().parameters.back()));
           }
         }
 
-        
+        /*
+         * Check if there were any post spec segments
+         */ 
+        if (!post_spec_ptrs.empty())
+        {
+          // If this pipe contains segments that need specifications but cannot be specified
+          // then this pipe cannot be used
+          if (spec_ptrs.empty())
+          {
+            continue;
+          }
+
+          // Go through the parameters which need post 
+          for (auto post_spec_ptr : post_spec_ptrs)
+          {
+            // Look the spec information from specified parameters
+            for (auto spec_ptr : spec_ptrs)
+            {
+              if (post_spec_ptr->key == spec_ptr->key)
+              {
+                post_spec_ptr->value = spec_ptr->value;
+              }
+            } 
+          }
+
+          // Check if all post parameters have been specified
+          bool parameters_specified = true;
+          for (auto post_spec_ptr : post_spec_ptrs)
+          {
+            if (post_spec_ptr->value.empty())
+            {
+              parameters_specified = false;
+              break;
+            }
+          }
+
+          // If some parameters are still without a value, then this pipe
+          // cannot be used
+          if (!parameters_specified)
+          {
+            continue;
+          }
+        }
+
         load_pipe_msg.request.pipe_category = pipe_category;
         resource_manager_1_.call<temoto_component_manager::LoadPipe>(temoto_component_manager::srv_name::MANAGER_2,
                                                                      temoto_component_manager::srv_name::PIPE_SERVER,
