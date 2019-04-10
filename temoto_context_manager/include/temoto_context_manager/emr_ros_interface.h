@@ -42,10 +42,10 @@ public:
    * 
    * @return std::string 
    */
-  const std::string& getName() const
-  {
-    return payload_.name;
-  }
+  // const std::string& getName() const
+  // {
+  //   return payload_.name;
+  // }
   RosMsg getPayload() const {return payload_;};
   /**
    * @brief Set the Payload object
@@ -69,7 +69,7 @@ class EmrRosInterface
 public:
   EmrRosInterface(emr::EnvironmentModelRepository& emr, std::string identifier) : env_model_repository_(emr), identifier_(identifier) 
   {
-    tf_timer_ = nh_.createTimer(ros::Duration(0.1), &EmrRosInterface::emr_tf_callback, this);
+    tf_timer_ = nh_.createTimer(ros::Duration(0.1), &EmrRosInterface::emrTfCallback, this);
   }
 
   template<class Container>
@@ -86,9 +86,9 @@ public:
   std::shared_ptr<RosPayload<Container>> getRosPayloadPtr(const std::string& name)
   {
     return std::dynamic_pointer_cast<RosPayload<Container>>
-      (env_model_repository_.getItemByName(name)->getPayload());
+      (env_model_repository_.getItemByName(modifyName(name))->getPayload());
   }
-  bool hasItem(const std::string& name) {return env_model_repository_.hasItem(name);}
+  bool hasItem(const std::string& name) {return env_model_repository_.hasItem(modifyName(name));}
 
   /**
    * @brief Update the EMR structure with new information
@@ -140,10 +140,12 @@ private:
   ros::NodeHandle nh_;
   ros::Timer tf_timer_;
   tf::TransformBroadcaster tf_broadcaster;
+
+  std::string modifyName(const std::string& name_in);
   
-  void emr_tf_callback(const ros::TimerEvent&);
+  void emrTfCallback(const ros::TimerEvent&);
   template <class Container>
-  void publish_container_tf(const std::string& type, const Container& container);
+  void publishContainerTf(const std::string& type, const Container& container);
 };
 
 } // namespace emr_ros_interface
