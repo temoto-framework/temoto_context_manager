@@ -175,10 +175,13 @@ public:
     UpdateEmr update_EMR_srvmsg;
     update_EMR_srvmsg.request.items = item_containers;
 
+    TEMOTO_INFO_STREAM("Calling " << srv_name::SERVER_UPDATE_EMR << " server ...");
     if (!update_EMR_client_.call<UpdateEmr>(update_EMR_srvmsg)) 
     {
       throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
     }
+
+    TEMOTO_INFO_STREAM("Call to " << srv_name::SERVER_UPDATE_EMR << " was successful");
     for (auto item_container : update_EMR_srvmsg.response.failed_items)
     {
       if (item_container.type == "OBJECT") {

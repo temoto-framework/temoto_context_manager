@@ -23,14 +23,15 @@ ContextManager::ContextManager()
 
   // Object tracking service
   resource_manager_1_.addServer<TrackObject>(srv_name::TRACK_OBJECT_SERVER
-                                                    , &ContextManager::loadTrackObjectCb
-                                                    , &ContextManager::unloadTrackObjectCb);
+                                            , &ContextManager::loadTrackObjectCb
+                                            , &ContextManager::unloadTrackObjectCb);
 
   // Register callback for status info
   resource_manager_1_.registerStatusCb(&ContextManager::statusCb1);
   resource_manager_2_.registerStatusCb(&ContextManager::statusCb2);
 
-  // "Update EMR" server
+  // "Update EMR" 
+  TEMOTO_INFO("Starting the EMR update server");
   update_emr_server_ = nh_.advertiseService(srv_name::SERVER_UPDATE_EMR, &ContextManager::updateEmrCb, this);
   
   // Request remote EMR configurations
@@ -38,7 +39,7 @@ ContextManager::ContextManager()
 
   // Start the component-to-EMR linker actions
   TEMOTO_INFO("Starting the component-to-emr-item linker ...");
-  //startComponentToEmrLinker();
+  startComponentToEmrLinker();
   
   TEMOTO_INFO("Context Manager is ready.");
 }
@@ -234,6 +235,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
       // Check if this type of pipe exists in the registry
       if (!component_to_emr_registry_.hasPipe(pipe_category))
       {
+        TEMOTO_ERROR_STREAM("Could not locate pipe: " << pipe_category);
         continue;
       }
 
@@ -264,8 +266,13 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
           // Check if "frame_id" is listed in the required parameters
           if ( std::find(required_params.begin(), required_params.end(), "frame_id") == required_params.end())
           {
+            TEMOTO_WARN("Segment %d (type: %s) of pipe '%s' does not require any specifications"
+                     , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
             continue;
           }
+
+          TEMOTO_WARN("Segment %d (type: %s) of pipe '%s' requires 'frame_id' parameter specifications"
+                     , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
 
           temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
           diagnostic_msgs::KeyValue frame_id_spec;
@@ -274,6 +281,9 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
           ComponentInfos component_infos = component_to_emr_registry_.hasLinks(pipe_segment.segment_type);
           if (!component_infos.empty())
           {
+            TEMOTO_WARN("Segment %d (type: %s) of pipe '%s' can be specified in-place"
+                     , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
+
             // TODO: Implement a selection metric
             temoto_component_manager::Component& chosen_component = component_infos[0];
             frame_id_spec.key = "frame_id";
@@ -291,6 +301,9 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
           }
           else
           {
+            TEMOTO_WARN("Segment %d (type: %s) of pipe '%s' requires post-specification"
+                     , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
+
             // If no emr-linked components were found then this is either an currently not defined
             // EMR item, or this component does not have geometry, i.e., it's an algorithm
             // Mark this component to be assessed after each segment has been checked
@@ -311,10 +324,15 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
          */ 
         if (!post_spec_ptrs.empty())
         {
+          TEMOTO_WARN("Trying to post-specify %d segments of pipe '%s'", post_spec_ptrs.size()
+            , pipe_category.c_str());
+
           // If this pipe contains segments that need specifications but cannot be specified
           // then this pipe cannot be used
           if (spec_ptrs.empty())
           {
+            TEMOTO_WARN("Cannot post-specify any segments of pipe '%s' because there are no"
+             "in-place specificationss", pipe_category.c_str());
             continue;
           }
 
@@ -326,6 +344,9 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
             {
               if (post_spec_ptr->key == spec_ptr->key)
               {
+                TEMOTO_WARN("Post-specifying '%s'(key) as '%s'(value)", post_spec_ptr->key.c_str()
+                  , spec_ptr->value.c_str());
+                // TODO: the post_spec_ptr->value might be overwritten
                 post_spec_ptr->value = spec_ptr->value;
               }
             } 
@@ -447,7 +468,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     sft.printTaskDescriptors(root_node);
 
     // Execute the SFT
-    action_engine_.executeSFT(std::move(sft));
+    action_engine_.executeSFTThreaded(std::move(sft));
 
     // Put the object into the list of tracked objects. This is used later
     // for stopping the tracker
@@ -476,32 +497,43 @@ void ContextManager::startComponentToEmrLinker()
    * manually created SF, exists. The tracker action is invoked  and it continues
    * running in the background until its ordered to stop.
    */
+  try
+  {
+    std::string action = "start";
+    temoto_nlp::Subjects subjects;
 
-  std::string action = "compose";
-  temoto_nlp::Subjects subjects;
+    // Subject that will contain the name of the tracked object.
+    // Necessary when the tracker has to be stopped
+    temoto_nlp::Subject sub_0("what", "emr");
+    sub_0.addData("pointer", boost::any_cast<emr_ros_interface::EmrRosInterface*>(&emr_interface));
 
-  // Subject that will contain the name of the tracked object.
-  // Necessary when the tracker has to be stopped
-  temoto_nlp::Subject sub_0("what", "emr");
-  sub_0.addData("pointer", boost::any_cast<emr_ros_interface::EmrRosInterface*>(&emr_interface));
+    // Subject that will contain the data necessary for the specific tracker
+    temoto_nlp::Subject sub_1("what", "emr-to-component registry");
+    sub_1.addData("pointer", boost::any_cast<ComponentToEmrRegistry*>(&component_to_emr_registry_));
 
-  // Subject that will contain the data necessary for the specific tracker
-  temoto_nlp::Subject sub_1("what", "emr-to-component registry");
-  sub_1.addData("pointer", boost::any_cast<ComponentToEmrRegistry*>(&component_to_emr_registry_));
+    subjects.push_back(sub_0);
+    subjects.push_back(sub_1);
 
-  subjects.push_back(sub_0);
-  subjects.push_back(sub_1);
+    // Create a SF
+    std::vector<temoto_nlp::TaskDescriptor> task_descriptors;
+    task_descriptors.emplace_back(action, subjects);
+    task_descriptors[0].setActionStemmed(action);
 
-  // Create a SF
-  std::vector<temoto_nlp::TaskDescriptor> task_descriptors;
-  task_descriptors.emplace_back(action, subjects);
-  task_descriptors[0].setActionStemmed(action);
+    // Create a sematic frame tree
+    temoto_nlp::TaskTree sft = temoto_nlp::SFTBuilder::build(task_descriptors);
 
-  // Create a sematic frame tree
-  temoto_nlp::TaskTree sft = temoto_nlp::SFTBuilder::build(task_descriptors);
+    temoto_nlp::TaskTreeNode& root_node = sft.getRootNode();
+    sft.printTaskDescriptors(root_node);
 
-  // Execute the SFT
-  action_engine_.executeSFT(std::move(sft));
+    // Execute the SFT
+    action_engine_.executeSFTThreaded(std::move(sft));
+  }
+  catch (temoto_core::error::ErrorStack& error_stack)
+  {
+    // TODO: Figure out what is the best way to propagate errors from the constructor
+    TEMOTO_ERROR("Problems with starting the emr-component linker action");
+    //throw FORWARD_ERROR(error_stack);
+  }
 }
 
 /*

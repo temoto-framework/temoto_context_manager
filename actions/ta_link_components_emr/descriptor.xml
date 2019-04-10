@@ -1,4 +1,4 @@
-<task action="compose">
+<task action="start">
     <interface id="0" type="asynchronous">
         <in>
             <what word="emr">

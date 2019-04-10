@@ -21,7 +21,7 @@ namespace temoto_context_manager
     const std::string MANAGER_2 = "temoto_context_manager_2";
     const std::string TRACKER_SERVER = "load_tracker";
 
-    const std::string SERVER_UPDATE_EMR = "update_emr";
+    const std::string SERVER_UPDATE_EMR = MANAGER + "/update_emr";
     const std::string SERVER_GET_EMR_ITEM = "get_emr_item";
   }
 }
