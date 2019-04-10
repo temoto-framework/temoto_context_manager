@@ -42,10 +42,10 @@ public:
    * 
    * @return std::string 
    */
-  // const std::string& getName() const
-  // {
-  //   return payload_.name;
-  // }
+  const std::string& getName() const
+  {
+    return payload_.name;
+  }
   RosMsg getPayload() const {return payload_;};
   /**
    * @brief Set the Payload object
