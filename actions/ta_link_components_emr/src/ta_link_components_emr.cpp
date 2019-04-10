@@ -122,10 +122,12 @@ void startInterface_0()
       {
         if (eri->hasItem(ci.component_name) && !c_emr_reg->hasLink(ci.component_name))
         {
+          TEMOTO_INFO_STREAM("Linking component: " << ci.component_name);
           c_emr_reg->addLink(ci, ci.component_name);
         }
         else if (!eri->hasItem(ci.component_name) && c_emr_reg->hasLink(ci.component_name))
         {
+          TEMOTO_INFO_STREAM("Un-linking component: " << ci.component_name);
           c_emr_reg->removeLink(ci.component_name);
         }
       }
@@ -148,6 +150,7 @@ void startInterface_0()
       pipe_info_msgs_ = list_pipes_srvmsg.response.pipe_infos;
       for(const auto& pi : pipe_info_msgs_)
       {
+        TEMOTO_DEBUG_STREAM("Got pipe: " << pi.pipe_type);
         cat_pipes[pi.pipe_type].push_back(pi);
       }
       
