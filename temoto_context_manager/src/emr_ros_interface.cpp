@@ -14,7 +14,7 @@ void EmrRosInterface::publishContainerTf(const std::string& type, const Containe
                                       container.pose.pose.orientation.y,
                                       container.pose.pose.orientation.z,
                                       container.pose.pose.orientation.w));
-  tf_broadcaster.sendTransform(tf::StampedTransform(transform, container.pose.header.stamp, modifyName(container.parent), modifyName(container.name)));
+  tf_broadcaster.sendTransform(tf::StampedTransform(transform, ros::Time::now(), modifyName(container.parent), modifyName(container.name)));
 }
 void EmrRosInterface::emrTfCallback(const ros::TimerEvent&)
 {
@@ -36,6 +36,13 @@ void EmrRosInterface::emrTfCallback(const ros::TimerEvent&)
       // If maintainer is another instance, don't publish
       if (getRosPayloadPtr<temoto_context_manager::MapContainer>(item_entry.first)->getMaintainer() != identifier_) continue;
       temoto_context_manager::MapContainer mc = getContainer<temoto_context_manager::MapContainer>(item_entry.first);
+      publishContainerTf(type, mc);
+    }
+    else if (type == "COMPONENT")
+    {
+      // If maintainer is another instance, don't publish
+      if (getRosPayloadPtr<temoto_context_manager::ComponentContainer>(item_entry.first)->getMaintainer() != identifier_) continue;
+      temoto_context_manager::ComponentContainer mc = getContainer<temoto_context_manager::ComponentContainer>(item_entry.first);
       publishContainerTf(type, mc);
     }
   }

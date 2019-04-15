@@ -24,6 +24,7 @@
 #include "temoto_context_manager/emr_ros_interface.h"
 #include "tf/transform_listener.h"
 #include "ar_track_alvar_msgs/AlvarMarkers.h"
+#include "geometry_msgs/PoseStamped.h"
 
 /* 
  * ACTION IMPLEMENTATION of TaTrackArtag 
@@ -74,8 +75,10 @@ ros::NodeHandle nh_;
 ros::Subscriber artag_subscriber_;
 ros::Publisher tracked_object_publisher_;
 uint32_t tag_id_;
-temoto_context_manager::ObjectPtr tracked_object_;
+temoto_context_manager::ObjectContainer tracked_object_;
 tf::TransformListener tf_listener;
+std::string object_name;
+emr_ros_interface::EmrRosInterface* emr_interface_ptr;
     
 /*
  * Interface 0 body
@@ -84,18 +87,21 @@ void startInterface_0()
 {
   /* EXTRACTION OF INPUT SUBJECTS */
   temoto_nlp::Subject what_0_in = temoto_nlp::getSubjectByType("what", input_subjects);
-  std::string  object_name = what_0_in.words_[0];
+  object_name = what_0_in.words_[0];
 
   temoto_nlp::Subject what_1_in = temoto_nlp::getSubjectByType("what", input_subjects);
   std::string  what_1_word_in = what_1_in.words_[0];
   std::string  what_1_data_0_in = boost::any_cast<std::string>(what_1_in.data_[0].value);
   temoto_core::TopicContainer topic_container = boost::any_cast<temoto_core::TopicContainer>(what_1_in.data_[1].value);
-  emr_ros_interface::EmrRosInterface* emr_interface_ptr = 
+  emr_interface_ptr = 
     boost::any_cast<emr_ros_interface::EmrRosInterface*>(what_1_in.data_[2].value);
-  tracked_object_ = emr_interface_ptr->getContainerPtr<temoto_context_manager::ObjectContainer>(object_name);
-
+  tracked_object_ = emr_interface_ptr->getContainer<temoto_context_manager::ObjectContainer>(object_name);
+  tag_id_ = tracked_object_.tag_id;
+  
   TEMOTO_INFO_STREAM("starting to track object: " << object_name);
-  TEMOTO_INFO_STREAM("Receiving information on topics:");
+  std::string topic = topic_container.getOutputTopic("marker_data");
+  TEMOTO_INFO_STREAM("Receiving information on topics:" << topic);
+  artag_subscriber_ = nh_.subscribe(topic, 1000, &TaTrackArtag::artagDataCb, this);
 
   for (auto topic_pair : topic_container.getOutputTopics())
   {
@@ -115,11 +121,24 @@ void artagDataCb(ar_track_alvar_msgs::AlvarMarkers msg)
 
       // Update the pose of the object
       // tracked_object_->pose.pose = artag.pose.pose;
-      tf_listener.transformPose(tracked_object_->parent, artag.pose, tracked_object_->pose);
-      tracked_object_->pose.header = artag.header;
+      artag.pose.header.frame_id = artag.header.frame_id;
+      geometry_msgs::PoseStamped newPose;
+      TEMOTO_WARN_STREAM("Parent: " << tracked_object_.parent);
+      TEMOTO_WARN_STREAM("argar frame: " << artag.pose.header.frame_id);
+      try
+      {
+        tf_listener.transformPose(tracked_object_.parent, artag.pose, newPose);
+      }
+      catch(tf2::InvalidArgumentException& e )
+      {
+        TEMOTO_ERROR(e.what());
+      }
+      
+      newPose.header = artag.pose.header;
+      emr_interface_ptr->updatePose<temoto_context_manager::ObjectContainer>(object_name, newPose);
 
       // Publish the tracked object
-      tracked_object_publisher_.publish(*tracked_object_);
+      // tracked_object_publisher_.publish(tracked_object_);
 
       // TODO: do something reasonable if multiple markers with the same tag id are present
     }

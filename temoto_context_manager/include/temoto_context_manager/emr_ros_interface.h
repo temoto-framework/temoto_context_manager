@@ -7,7 +7,7 @@
 
 #include "temoto_context_manager/context_manager_containers.h"
 #include "temoto_context_manager/env_model_repository.h"
-
+#include "geometry_msgs/PoseStamped.h"
 #include "temoto_core/common/ros_serialization.h"
 #include "ros/package.h"
 
@@ -134,6 +134,22 @@ public:
    * @param items 
    */
   void EmrToVectorHelper(const emr::Item& currentItem, std::vector<temoto_context_manager::ItemContainer>& items);
+
+  /**
+   * @brief Update pose of EMR item
+   * 
+   * @tparam Container 
+   * @param name 
+   * @param newPose 
+   */
+  template <class Container>
+  void updatePose(const std::string& name, const geometry_msgs::PoseStamped& newPose)
+  {
+    std::shared_ptr<RosPayload<Container>> plptr = getRosPayloadPtr<Container>(name); 
+    Container temp = getContainer<Container>(name);
+    temp.pose = newPose;
+    plptr->setPayload(temp);
+  }
 private:
   emr::EnvironmentModelRepository& env_model_repository_;
   std::string identifier_;
