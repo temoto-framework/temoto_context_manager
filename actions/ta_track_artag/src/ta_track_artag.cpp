@@ -123,8 +123,6 @@ void artagDataCb(ar_track_alvar_msgs::AlvarMarkers msg)
       // tracked_object_->pose.pose = artag.pose.pose;
       artag.pose.header.frame_id = artag.header.frame_id;
       geometry_msgs::PoseStamped newPose;
-      TEMOTO_WARN_STREAM("Parent: " << tracked_object_.parent);
-      TEMOTO_WARN_STREAM("argar frame: " << artag.pose.header.frame_id);
       try
       {
         tf_listener.transformPose(tracked_object_.parent, artag.pose, newPose);
