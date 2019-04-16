@@ -18,7 +18,7 @@ void EmrRosInterface::publishContainerTf(const std::string& type, const Containe
 }
 void EmrRosInterface::emrTfCallback(const ros::TimerEvent&)
 {
-  // std::lock_guard<std::mutex> lock(emr_iface_mutex);
+  std::lock_guard<std::mutex> lock(emr_iface_mutex);
   for (auto const& item_entry : env_model_repository_.getItems())
   {
     // If root node, tf can not be published
@@ -29,21 +29,21 @@ void EmrRosInterface::emrTfCallback(const ros::TimerEvent&)
     {
       // If maintainer is another instance, don't publish
       if (getRosPayloadPtr<temoto_context_manager::ObjectContainer>(item_entry.first)->getMaintainer() != identifier_) continue;
-      temoto_context_manager::ObjectContainer oc = getContainer<temoto_context_manager::ObjectContainer>(item_entry.first);
+      temoto_context_manager::ObjectContainer oc = getContainerUnsafe<temoto_context_manager::ObjectContainer>(item_entry.first);
       publishContainerTf(type, oc);
     }
     else if (type == "MAP")
     {
       // If maintainer is another instance, don't publish
       if (getRosPayloadPtr<temoto_context_manager::MapContainer>(item_entry.first)->getMaintainer() != identifier_) continue;
-      temoto_context_manager::MapContainer mc = getContainer<temoto_context_manager::MapContainer>(item_entry.first);
+      temoto_context_manager::MapContainer mc = getContainerUnsafe<temoto_context_manager::MapContainer>(item_entry.first);
       publishContainerTf(type, mc);
     }
     else if (type == "COMPONENT")
     {
       // If maintainer is another instance, don't publish
       if (getRosPayloadPtr<temoto_context_manager::ComponentContainer>(item_entry.first)->getMaintainer() != identifier_) continue;
-      temoto_context_manager::ComponentContainer mc = getContainer<temoto_context_manager::ComponentContainer>(item_entry.first);
+      temoto_context_manager::ComponentContainer mc = getContainerUnsafe<temoto_context_manager::ComponentContainer>(item_entry.first);
       publishContainerTf(type, mc);
     }
   }

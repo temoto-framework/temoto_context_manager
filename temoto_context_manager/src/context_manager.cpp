@@ -105,7 +105,7 @@ Items ContextManager::updateEmr(const Items& items_to_add, bool from_other_manag
 /*
  * Advertise all objects
  */
-// 
+
 void ContextManager::advertiseEmr()
 {
   // Publish all items 

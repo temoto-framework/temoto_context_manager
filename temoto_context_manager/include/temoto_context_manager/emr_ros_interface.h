@@ -75,17 +75,18 @@ public:
   template<class Container>
   Container getContainer(const std::string& name)
   {
+    std::lock_guard<std::mutex> lock(emr_iface_mutex);
     return getRosPayloadPtr<Container>(name)->getPayload();
   }
   template<class Container>
-  std::shared_ptr<Container> getContainerPtr(const std::string& name)
+  Container getContainerUnsafe(const std::string& name)
   {
-    return std::make_shared<Container>(getRosPayloadPtr<Container>(name)->getPayload());
+    return getRosPayloadPtr<Container>(name)->getPayload();
   }
+
   template<class Container>
   std::shared_ptr<RosPayload<Container>> getRosPayloadPtr(const std::string& name)
   {
-    std::lock_guard<std::mutex> lock(emr_iface_mutex);
     return std::dynamic_pointer_cast<RosPayload<Container>>
       (env_model_repository_.getItemByName(modifyName(name))->getPayload());
   }
