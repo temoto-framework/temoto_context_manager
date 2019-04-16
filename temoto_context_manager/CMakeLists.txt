@@ -81,3 +81,7 @@ target_link_libraries(temoto_context_manager
   temoto_nlp_components
   temoto_core_components
 )
+add_library(lib_temoto_emr
+  src/emr_ros_interface.cpp
+  src/env_model_repository.cpp
+)

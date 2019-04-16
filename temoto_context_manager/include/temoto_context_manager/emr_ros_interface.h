@@ -7,7 +7,7 @@
 
 #include "temoto_context_manager/context_manager_containers.h"
 #include "temoto_context_manager/env_model_repository.h"
-
+#include "geometry_msgs/PoseStamped.h"
 #include "temoto_core/common/ros_serialization.h"
 #include "ros/package.h"
 
@@ -73,15 +73,17 @@ public:
   }
 
   template<class Container>
-  Container getContainer(const std::string name)
+  Container getContainer(const std::string& name)
   {
+    std::lock_guard<std::mutex> lock(emr_iface_mutex);
     return getRosPayloadPtr<Container>(name)->getPayload();
   }
   template<class Container>
-  std::shared_ptr<Container> getContainerPtr(const std::string name)
+  Container getContainerUnsafe(const std::string& name)
   {
-    return std::make_shared<Container>(getRosPayloadPtr<Container>(name)->getPayload());
+    return getRosPayloadPtr<Container>(name)->getPayload();
   }
+
   template<class Container>
   std::shared_ptr<RosPayload<Container>> getRosPayloadPtr(const std::string& name)
   {
@@ -134,12 +136,30 @@ public:
    * @param items 
    */
   void EmrToVectorHelper(const emr::Item& currentItem, std::vector<temoto_context_manager::ItemContainer>& items);
+
+  /**
+   * @brief Update pose of EMR item
+   * 
+   * @tparam Container 
+   * @param name 
+   * @param newPose 
+   */
+  template <class Container>
+  void updatePose(const std::string& name, const geometry_msgs::PoseStamped& newPose)
+  {
+    std::shared_ptr<RosPayload<Container>> plptr = getRosPayloadPtr<Container>(name); 
+    std::lock_guard<std::mutex> lock(emr_iface_mutex);
+    Container temp = plptr->getPayload();
+    temp.pose = newPose;
+    plptr->setPayload(temp);
+  }
 private:
   emr::EnvironmentModelRepository& env_model_repository_;
   std::string identifier_;
   ros::NodeHandle nh_;
   ros::Timer tf_timer_;
   tf::TransformBroadcaster tf_broadcaster;
+  mutable std::mutex emr_iface_mutex;
 
   std::string modifyName(const std::string& name_in);
   
