@@ -2,7 +2,7 @@
     <interface id="0" type="asynchronous">
         <in>
             <what word="" />
-            <what word="">
+            <what word="artag">
                 <data datatype="topic" />
                 <data datatype="pointer" />
                 <data datatype="pointer" />

@@ -266,12 +266,10 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
           // Check if "frame_id" is listed in the required parameters
           if ( std::find(required_params.begin(), required_params.end(), "frame_id") == required_params.end())
           {
-            TEMOTO_WARN("Segment %d (type: %s) of pipe '%s' does not require any specifications"
-                     , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
             continue;
           }
 
-          TEMOTO_WARN("Segment %d (type: %s) of pipe '%s' requires 'frame_id' parameter specifications"
+          TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires 'frame_id' parameter specifications"
                      , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
 
           temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
@@ -281,7 +279,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
           ComponentInfos component_infos = component_to_emr_registry_.hasLinks(pipe_segment.segment_type);
           if (!component_infos.empty())
           {
-            TEMOTO_WARN("Segment %d (type: %s) of pipe '%s' can be specified in-place"
+           TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' can be specified in-place"
                      , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
 
             // TODO: Implement a selection metric
@@ -301,7 +299,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
           }
           else
           {
-            TEMOTO_WARN("Segment %d (type: %s) of pipe '%s' requires post-specification"
+            TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires post-specification"
                      , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
 
             // If no emr-linked components were found then this is either an currently not defined
@@ -324,14 +322,14 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
          */ 
         if (!post_spec_ptrs.empty())
         {
-          TEMOTO_WARN("Trying to post-specify %d segments of pipe '%s'", post_spec_ptrs.size()
+          TEMOTO_DEBUG("Trying to post-specify %d segments of pipe '%s'", post_spec_ptrs.size()
             , pipe_category.c_str());
 
           // If this pipe contains segments that need specifications but cannot be specified
           // then this pipe cannot be used
           if (spec_ptrs.empty())
           {
-            TEMOTO_WARN("Cannot post-specify any segments of pipe '%s' because there are no"
+            TEMOTO_DEBUG("Cannot post-specify any segments of pipe '%s' because there are no"
              "in-place specificationss", pipe_category.c_str());
             continue;
           }
@@ -344,7 +342,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
             {
               if (post_spec_ptr->key == spec_ptr->key)
               {
-                TEMOTO_WARN("Post-specifying '%s'(key) as '%s'(value)", post_spec_ptr->key.c_str()
+                TEMOTO_DEBUG("Post-specifying '%s'(key) as '%s'(value)", post_spec_ptr->key.c_str()
                   , spec_ptr->value.c_str());
                 // TODO: the post_spec_ptr->value might be overwritten
                 post_spec_ptr->value = spec_ptr->value;
