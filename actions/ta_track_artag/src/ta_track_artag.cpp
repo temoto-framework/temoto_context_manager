@@ -98,7 +98,7 @@ void startInterface_0()
   tracked_object_ = emr_interface_ptr->getContainer<temoto_context_manager::ObjectContainer>(object_name);
   tag_id_ = tracked_object_.tag_id;
   
-  TEMOTO_INFO_STREAM("starting to track object: " << object_name);
+  TEMOTO_INFO_STREAM("Starting to track object: " << object_name);
   std::string topic = topic_container.getOutputTopic("marker_data");
   TEMOTO_INFO_STREAM("Receiving information on topics:" << topic);
   artag_subscriber_ = nh_.subscribe(topic, 1000, &TaTrackArtag::artagDataCb, this);

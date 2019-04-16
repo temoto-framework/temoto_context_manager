@@ -18,6 +18,7 @@ void EmrRosInterface::publishContainerTf(const std::string& type, const Containe
 }
 void EmrRosInterface::emrTfCallback(const ros::TimerEvent&)
 {
+  // std::lock_guard<std::mutex> lock(emr_iface_mutex);
   for (auto const& item_entry : env_model_repository_.getItems())
   {
     // If root node, tf can not be published
@@ -52,6 +53,7 @@ std::vector<temoto_context_manager::ItemContainer> EmrRosInterface::updateEmr(
                   const std::vector<temoto_context_manager::ItemContainer>& items_to_add, 
                   bool update_time)
 {
+  std::lock_guard<std::mutex> lock(emr_iface_mutex);
   
   // Keep track of failed add/update attempts
   std::vector<temoto_context_manager::ItemContainer> failed_items;
@@ -138,6 +140,7 @@ bool EmrRosInterface::addOrUpdateEmrItem(
 
 std::vector<temoto_context_manager::ItemContainer> EmrRosInterface::EmrToVector()
 {
+  std::lock_guard<std::mutex> lock(emr_iface_mutex);
   std::vector<temoto_context_manager::ItemContainer> items;
   std::vector<std::shared_ptr<emr::Item>> root_items = env_model_repository_.getRootItems();
   for (const auto& item : root_items)

@@ -1,6 +1,7 @@
 #ifndef TEMOTO_ENV_MODEL_REPOSITORY_H
 #define TEMOTO_ENV_MODEL_REPOSITORY_H
 
+#include <mutex>
 namespace emr 
 {
 
@@ -107,8 +108,13 @@ class EnvironmentModelRepository
 {
 private:
   std::map<std::string, std::shared_ptr<Item>> items;
+  mutable std::mutex emr_mutex; 
 public:
-  const std::map<std::string, std::shared_ptr<Item>>& getItems() {return items;}
+  const std::map<std::string, std::shared_ptr<Item>>& getItems() 
+  {
+    std::lock_guard<std::mutex> lock(emr_mutex);
+    return items;
+  }
   /**
    * @brief Get the root items of the structure
    * 
@@ -148,6 +154,7 @@ public:
    */
   const std::shared_ptr<Item> getItemByName(std::string item_name)
   {
+    std::lock_guard<std::mutex> lock(emr_mutex);
     return items[item_name];
   }
   /**

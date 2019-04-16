@@ -9,7 +9,7 @@ namespace emr
 {
 void EnvironmentModelRepository::addItem(const std::string& name, const std::string& parent, std::shared_ptr<PayloadEntry> payload)
 {
-  
+  std::lock_guard<std::mutex> lock(emr_mutex);
   // Check if we need to attach to a parent
   if (parent == "")
   {
@@ -27,15 +27,18 @@ void EnvironmentModelRepository::addItem(const std::string& name, const std::str
 
 void EnvironmentModelRepository::updateItem(const std::string& name, std::shared_ptr<PayloadEntry> plptr)
 {
+  std::lock_guard<std::mutex> lock(emr_mutex);
   items[name]->setPayload(plptr);
 }
 
 bool EnvironmentModelRepository::hasItem(const std::string& name)
 {
+  std::lock_guard<std::mutex> lock(emr_mutex);
   return items.count(name);
 }
 std::vector<std::shared_ptr<Item>> EnvironmentModelRepository::getRootItems() const
 {
+  std::lock_guard<std::mutex> lock(emr_mutex);
   std::vector<std::shared_ptr<Item>> root_items;
   for (auto const& pair : items)
   {
@@ -63,9 +66,10 @@ void Item::addChild(std::shared_ptr<Item> child)
  */
 void Item::setParent(std::shared_ptr<Item> parent)
 {
-//   TEMOTO_DEBUG("Attempting to add " << parent->name.c_str() << " as parent to " << name);
+  //   TEMOTO_DEBUG("Attempting to add " << parent->name.c_str() << " as parent to " << name);
   // Make sure the item does not already have a parent
-  if (parent_.expired()) {
+  if (parent_.expired()) 
+  {
     parent_ = parent;
   }
   else

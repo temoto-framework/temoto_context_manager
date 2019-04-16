@@ -73,18 +73,19 @@ public:
   }
 
   template<class Container>
-  Container getContainer(const std::string name)
+  Container getContainer(const std::string& name)
   {
     return getRosPayloadPtr<Container>(name)->getPayload();
   }
   template<class Container>
-  std::shared_ptr<Container> getContainerPtr(const std::string name)
+  std::shared_ptr<Container> getContainerPtr(const std::string& name)
   {
     return std::make_shared<Container>(getRosPayloadPtr<Container>(name)->getPayload());
   }
   template<class Container>
   std::shared_ptr<RosPayload<Container>> getRosPayloadPtr(const std::string& name)
   {
+    std::lock_guard<std::mutex> lock(emr_iface_mutex);
     return std::dynamic_pointer_cast<RosPayload<Container>>
       (env_model_repository_.getItemByName(modifyName(name))->getPayload());
   }
@@ -146,7 +147,8 @@ public:
   void updatePose(const std::string& name, const geometry_msgs::PoseStamped& newPose)
   {
     std::shared_ptr<RosPayload<Container>> plptr = getRosPayloadPtr<Container>(name); 
-    Container temp = getContainer<Container>(name);
+    std::lock_guard<std::mutex> lock(emr_iface_mutex);
+    Container temp = plptr->getPayload();
     temp.pose = newPose;
     plptr->setPayload(temp);
   }
@@ -156,6 +158,7 @@ private:
   ros::NodeHandle nh_;
   ros::Timer tf_timer_;
   tf::TransformBroadcaster tf_broadcaster;
+  mutable std::mutex emr_iface_mutex;
 
   std::string modifyName(const std::string& name_in);
   
