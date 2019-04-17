@@ -8,6 +8,7 @@
 #include "temoto_nlp/base_task/base_task.h"
 #include "temoto_context_manager/context_manager_services.h"
 #include "temoto_context_manager/MapContainer.h"
+#include "temoto_context_manager/ComponentContainer.h"
 #include "temoto_core/common/ros_serialization.h"
 
 #include "std_msgs/Float32.h"
@@ -52,7 +53,7 @@ public:
     resource_manager_->registerStatusCb(&ContextManagerInterface::statusInfoCb);
 
     // Add EMR service client
-    update_EMR_client_ = nh_.serviceClient<UpdateEMR>(srv_name::SERVER_UPDATE_EMR);
+    update_EMR_client_ = nh_.serviceClient<UpdateEmr>(srv_name::SERVER_UPDATE_EMR);
   }
 
   int getNumber(const int number)
@@ -83,45 +84,6 @@ public:
     }
 
     return srv_msg.response.responded_int;
-  }
-
-  /**
-   * @brief startTracker
-   * @param tracker_category
-   * @return
-   */
-  temoto_core::TopicContainer startTracker(std::string tracker_category)
-  {
-    // Validate the interface
-    try
-    {
-      validateInterface();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
-    // Start filling out the LoadTracker message
-    LoadTracker load_tracker_msg;
-    load_tracker_msg.request.tracker_category = tracker_category;
-
-    try
-    {
-      resource_manager_->template call<LoadTracker>(srv_name::MANAGER_2,
-                                                              srv_name::TRACKER_SERVER,
-                                                              load_tracker_msg);
-      allocated_trackers_.push_back(load_tracker_msg);
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
-    temoto_core::TopicContainer topics_to_return;
-    topics_to_return.setOutputTopicsByKeyValue(load_tracker_msg.response.output_topics);
-
-    return topics_to_return;
   }
 
   std::string trackObject(std::string object_name)
@@ -161,11 +123,11 @@ public:
    * @param container 
    */
   template <class Container>
-  void addToEMR(const Container& container)
+  void addToEmr(const Container& container)
   {
     std::vector<Container> containers;
     containers.push_back(container);
-    addToEMR(containers);
+    addToEmr(containers);
   }
   /**
    * @brief Add several containers to EMR
@@ -177,10 +139,10 @@ public:
    * @param containers 
    */
   template <class Container>
-  void addToEMR(const std::vector<Container> & containers)
+  void addToEmr(std::vector<Container> & containers)
   {
-    std::vector<temoto_context_manager::NodeContainer> node_containers;
-    for (const auto& container : containers)
+    std::vector<temoto_context_manager::ItemContainer> item_containers;
+    for (auto& container : containers)
     {
       if (container.name == "")
       {
@@ -188,34 +150,59 @@ public:
       }
       else
       {
-        temoto_context_manager::NodeContainer nc;
+        container.pose.header.stamp = ros::Time::now(); 
+        temoto_context_manager::ItemContainer nc;
+        // nc.last_modified = ros::Time::now();
+        nc.maintainer = temoto_core::common::getTemotoNamespace();
         // Check the type of the container
-        if (std::is_same<Container, ObjectContainer>::value) {
+        if (std::is_same<Container, ObjectContainer>::value) 
+        {
           nc.type = "OBJECT";
         }
-        else if (std::is_same<Container, MapContainer>::value) {
+        else if (std::is_same<Container, MapContainer>::value) 
+        {
           nc.type = "MAP";
         }
+        else if (std::is_same<Container, ComponentContainer>::value) 
+        {
+          nc.type = "COMPONENT";
+        }
         nc.serialized_container = temoto_core::serializeROSmsg(container);
-        node_containers.push_back(nc);
+        item_containers.push_back(nc);
       }
       
     }
-    UpdateEMR update_EMR_srvmsg;
-    update_EMR_srvmsg.request.nodes = node_containers;
+    UpdateEmr update_EMR_srvmsg;
+    update_EMR_srvmsg.request.items = item_containers;
 
-    if (!update_EMR_client_.call<UpdateEMR>(update_EMR_srvmsg)) {
+    TEMOTO_INFO_STREAM("Calling " << srv_name::SERVER_UPDATE_EMR << " server ...");
+    if (!update_EMR_client_.call<UpdateEmr>(update_EMR_srvmsg)) 
+    {
       throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
     }
 
-    // Check the response code
-    // TODO: First of all, transfer the RMP members straight to the request part.
-    //       Then, instead of checkin the code, check the error stack.
-    if (update_EMR_srvmsg.response.rmp.code != 0)
+    TEMOTO_INFO_STREAM("Call to " << srv_name::SERVER_UPDATE_EMR << " was successful");
+    for (auto item_container : update_EMR_srvmsg.response.failed_items)
     {
-      throw FORWARD_ERROR(update_EMR_srvmsg.response.rmp.error_stack);
+      if (item_container.type == "OBJECT") {
+        auto container = temoto_core::deserializeROSmsg<ObjectContainer>
+                                (item_container.serialized_container);
+        TEMOTO_INFO_STREAM("Failed to add item: " << container.name << std::endl);
+      }
+      else if (item_container.type == "MAP")
+      {
+        auto container = temoto_core::deserializeROSmsg<ObjectContainer>
+                                (item_container.serialized_container);
+        TEMOTO_INFO_STREAM("Failed to add item: " << container.name << std::endl);
+      }
+      else if (item_container.type == "COMPONENT")
+      {
+        auto container = temoto_core::deserializeROSmsg<ComponentContainer>
+                                (item_container.serialized_container);
+        TEMOTO_INFO_STREAM("Failed to add item: " << container.name << std::endl);
+      }
+      
     }
-    
   }
 
   /**
@@ -265,47 +252,13 @@ public:
     {
       TEMOTO_WARN("Received a notification about a resource failure. Unloading and trying again");
 
-      auto tracker_it = std::find_if(allocated_trackers_.begin(), allocated_trackers_.end(),
-                                  [&](const LoadTracker& sens) -> bool {
-                                    return sens.response.rmp.resource_id == srv.request.resource_id;
-                                  });
-
       auto track_object_it = std::find_if(allocated_track_objects_.begin(), allocated_track_objects_.end(),
                                   [&](const TrackObject& sens) -> bool {
                                     return sens.response.rmp.resource_id == srv.request.resource_id;
                                   });
 
       // If the tracker was found then ...
-      if (tracker_it != allocated_trackers_.end())
-      {
-        try
-        {
-          // ... unload it and ...
-          TEMOTO_DEBUG("Unloading the tracker");
-          resource_manager_->unloadClientResource(tracker_it->response.rmp.resource_id);
-
-          // ... copy the output topics from the response into the output topics
-          // of the request (since the user still wants to receive the data on the same topics) ...
-          tracker_it->request.output_topics = tracker_it->response.output_topics;
-          tracker_it->request.pipe_id = tracker_it->response.pipe_id;
-
-          // ... and load an alternative tracker. This call automatically
-          // updates the response in allocated trackers vector
-
-          TEMOTO_DEBUG_STREAM("Trying to load an alternative tracker");
-
-          resource_manager_->template call<LoadTracker>(srv_name::MANAGER_2,
-                                                                  srv_name::TRACKER_SERVER,
-                                                                  *tracker_it);
-        }
-        catch(temoto_core::error::ErrorStack& error_stack)
-        {
-          throw FORWARD_ERROR(error_stack);
-        }
-      }
-
-      // If the tracker was found then ...
-      else if (track_object_it != allocated_track_objects_.end())
+      if (track_object_it != allocated_track_objects_.end())
       {
         try
         {
@@ -325,8 +278,7 @@ public:
         }
       }
 
-      if (tracker_it != allocated_trackers_.end() &&
-          track_object_it != allocated_track_objects_.end())
+      if (track_object_it != allocated_track_objects_.end())
       {
         throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND, "Got resource_id that is not registered in this interface.");
       }
@@ -350,8 +302,8 @@ private:
 
   ros::NodeHandle nh_;
   ros::ServiceClient update_EMR_client_;
+  ros::ServiceClient get_EMR_item_client_;
 
-  std::vector<LoadTracker> allocated_trackers_;
   std::vector<TrackObject> allocated_track_objects_;
 
   /**

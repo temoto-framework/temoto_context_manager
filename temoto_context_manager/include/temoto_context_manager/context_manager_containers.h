@@ -3,7 +3,8 @@
 
 #include "temoto_context_manager/ObjectContainer.h"
 #include "temoto_context_manager/MapContainer.h"
-#include "temoto_context_manager/NodeContainer.h"
+#include "temoto_context_manager/ItemContainer.h"
+#include "temoto_context_manager/ComponentContainer.h"
 #include "temoto_core/common/topic_container.h"
 #include "temoto_context_manager/env_model_repository.h"
 namespace temoto_context_manager
@@ -13,8 +14,9 @@ namespace temoto_context_manager
 typedef std::vector<ObjectContainer> Objects;
 typedef std::shared_ptr<ObjectContainer> ObjectPtr;
 typedef std::vector<ObjectPtr> ObjectPtrs;
-typedef std::vector<NodeContainer> Nodes;
-typedef std::shared_ptr<emr::Node> NodePtr;
+typedef std::vector<ItemContainer> Items;
+typedef std::shared_ptr<emr::Item> ItemPtr;
+
 // ObjectContainer comparison operator
 bool operator==(const ObjectContainer& ob1, const ObjectContainer& ob2);
 

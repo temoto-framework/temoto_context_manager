@@ -1,0 +1,14 @@
+# Name of the item
+string item_name
+
+# RMP
+temoto_core/RMPRequest rmp
+
+---
+
+# Topic where the information about the required
+# item is going to be published
+string item_topic
+
+# RMP
+temoto_core/RMPResponse rmp

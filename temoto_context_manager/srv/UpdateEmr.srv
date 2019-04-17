@@ -1,0 +1,6 @@
+temoto_context_manager/ItemContainer[] items
+
+---
+
+# Was the update successful
+temoto_context_manager/ItemContainer[] failed_items

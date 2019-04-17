@@ -5,76 +5,77 @@
 #include <vector>
 #include "temoto_context_manager/env_model_repository.h"
 
-namespace temoto_context_manager 
-{
 namespace emr 
 {
-void EnvironmentModelRepository::addNode(std::string name, std::string parent, std::shared_ptr<PayloadEntry> payload)
+void EnvironmentModelRepository::addItem(const std::string& name, const std::string& parent, std::shared_ptr<PayloadEntry> payload)
 {
-  
+  std::lock_guard<std::mutex> lock(emr_mutex);
   // Check if we need to attach to a parent
   if (parent == "")
   {
-    // Add the node to the tree without a parent
-    nodes[name] = std::make_shared<Node>(Node(payload));
+    // Add the item to the tree without a parent
+    items[name] = std::make_shared<Item>(Item(payload));
   }
   else
   {
-    // Parent is legit, add the node to the tree
-    nodes[name] = std::make_shared<Node>(Node(payload));
-    // Add the new node as a child to the parent, creating the child -> parent link in the process
-    nodes[parent]->addChild(nodes[name]);
+    // Parent is legit, add the item to the tree
+    items[name] = std::make_shared<Item>(Item(payload));
+    // Add the new item as a child to the parent, creating the child -> parent link in the process
+    items[parent]->addChild(items[name]);
   }
 }
 
-void EnvironmentModelRepository::updateNode(std::string name, std::shared_ptr<PayloadEntry> plptr)
+void EnvironmentModelRepository::updateItem(const std::string& name, std::shared_ptr<PayloadEntry> plptr)
 {
-  nodes[name]->setPayload(plptr);
+  std::lock_guard<std::mutex> lock(emr_mutex);
+  items[name]->setPayload(plptr);
 }
 
-bool EnvironmentModelRepository::hasNode(std::string name)
+bool EnvironmentModelRepository::hasItem(const std::string& name)
 {
-  return nodes.count(name);
+  std::lock_guard<std::mutex> lock(emr_mutex);
+  return items.count(name);
 }
-std::vector<std::shared_ptr<Node>> EnvironmentModelRepository::getRootNodes() const
+std::vector<std::shared_ptr<Item>> EnvironmentModelRepository::getRootItems() const
 {
-  std::vector<std::shared_ptr<Node>> root_nodes;
-  for (auto const& pair : nodes)
+  std::lock_guard<std::mutex> lock(emr_mutex);
+  std::vector<std::shared_ptr<Item>> root_items;
+  for (auto const& pair : items)
   {
     if (pair.second->isRoot())
     {
-      root_nodes.push_back(pair.second);
+      root_items.push_back(pair.second);
     }
   }
-  return root_nodes;
+  return root_items;
 }
 /**
- * @brief Add child node to existing node
+ * @brief Add child item to existing item
  * 
- * @param child - pointer to the node to be added
+ * @param child - pointer to the item to be added
  */
-void Node::addChild(std::shared_ptr<Node> child)
+void Item::addChild(std::shared_ptr<Item> child)
 {
   children_.push_back(child);
   child->setParent(shared_from_this());
 }
 /**
- * @brief Set parent of node
+ * @brief Set parent of item
  * 
  * @param parent 
  */
-void Node::setParent(std::shared_ptr<Node> parent)
+void Item::setParent(std::shared_ptr<Item> parent)
 {
-//   TEMOTO_DEBUG("Attempting to add " << parent->name.c_str() << " as parent to " << name);
-  // Make sure the node does not already have a parent
-  if (parent_.expired()) {
+  //   TEMOTO_DEBUG("Attempting to add " << parent->name.c_str() << " as parent to " << name);
+  // Make sure the item does not already have a parent
+  if (parent_.expired()) 
+  {
     parent_ = parent;
   }
   else
   {
-    // TEMOTO_ERROR("Node already has a parent.")
+    // TEMOTO_ERROR("Item already has a parent.")
   } 
 }
 
 } // namespace emr
-} // namespace temoto_context_manager

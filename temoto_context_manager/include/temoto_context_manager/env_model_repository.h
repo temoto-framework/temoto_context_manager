@@ -1,12 +1,9 @@
 #ifndef TEMOTO_ENV_MODEL_REPOSITORY_H
 #define TEMOTO_ENV_MODEL_REPOSITORY_H
 
-namespace temoto_context_manager 
-{
+#include <mutex>
 namespace emr 
 {
-
-
 
 /**
  * @brief Abstract base class for payloads
@@ -34,51 +31,23 @@ public:
   void setType(std::string ntype) {type = ntype;}
 };
 
-template <class ROSMsg>
-class ROSPayload : public PayloadEntry
-{
-private:
-  ROSMsg payload_;
-public:
-  /**
-   * @brief Get the Name object
-   * 
-   * @return std::string 
-   */
-  const std::string& getName() const
-  {
-    return payload_.name;
-  }
-  const ROSMsg& getPayload() const {return payload_;};
-  /**
-   * @brief Set the Payload object
-   * 
-   * @param payload 
-   */
-  void setPayload(ROSMsg & payload) {payload_ = payload;};
-
-  ROSPayload(ROSMsg payload) : payload_(payload)
-  {
-  }
-
-};
 
 /**
- * @brief A single node in the EMR tree
+ * @brief A single item in the EMR tree
  * 
- * A node contains a payload and pointers to its (singular) parent and children.
+ * A item contains a payload and pointers to its (singular) parent and children.
  * 
  */
-class Node : public std::enable_shared_from_this<Node>
+class Item : public std::enable_shared_from_this<Item>
 {
 private:
-  std::weak_ptr<Node> parent_;
-  std::vector<std::shared_ptr<Node>> children_;
+  std::weak_ptr<Item> parent_;
+  std::vector<std::shared_ptr<Item>> children_;
   std::shared_ptr<PayloadEntry> payload_;
 
 public:
 
-  void addChild(std::shared_ptr<Node> child);
+  void addChild(std::shared_ptr<Item> child);
   /**
    * @brief Set the Parent pointer
    * 
@@ -86,17 +55,17 @@ public:
    * 
    * @param parent 
    */
-  void setParent(std::shared_ptr<Node> parent);
-  const std::weak_ptr<Node>& getParent() const
+  void setParent(std::shared_ptr<Item> parent);
+  const std::weak_ptr<Item>& getParent() const
   {
     return parent_;
   }
   /**
-   * @brief Get children of node
+   * @brief Get children of item
    * 
-   * @return std::vector<std::shared_ptr<Node>> 
+   * @return std::vector<std::shared_ptr<Item>> 
    */
-  const std::vector<std::shared_ptr<Node>>& getChildren() const
+  const std::vector<std::shared_ptr<Item>>& getChildren() const
   {
     return children_;
   }
@@ -112,9 +81,9 @@ public:
   const std::string& getName() const {return payload_->getName();}
   
   /**
-   * @brief Check if the node is a root node
+   * @brief Check if the item is a root item
    * 
-   * A node is a root node if it has no parent i.e. the weak pointer
+   * A item is a root item if it has no parent i.e. the weak pointer
    * to the parent is expired.
    * 
    * @return true 
@@ -128,72 +97,78 @@ public:
    */
   void setPayload(std::shared_ptr<PayloadEntry> plptr) {payload_ = plptr;}
 
-  Node(std::shared_ptr<PayloadEntry> payload) : payload_(payload) {}
+  Item(std::shared_ptr<PayloadEntry> payload) : payload_(payload) {}
 };
 
 /**
- * @brief Wrapper class to store pointers to all nodes of a tree in a map
+ * @brief Wrapper class to store pointers to all items of a tree in a map
  * 
  */
 class EnvironmentModelRepository
 {
 private:
-  std::map<std::string, std::shared_ptr<Node>> nodes;
+  std::map<std::string, std::shared_ptr<Item>> items;
+  mutable std::mutex emr_mutex; 
 public:
+  const std::map<std::string, std::shared_ptr<Item>>& getItems() 
+  {
+    std::lock_guard<std::mutex> lock(emr_mutex);
+    return items;
+  }
   /**
-   * @brief Get the root nodes of the structure
+   * @brief Get the root items of the structure
    * 
-   * Since the EMR can have several disconnected trees and floating nodes,
-   * we need to be able to find the root nodes to serialize the tree
+   * Since the EMR can have several disconnected trees and floating items,
+   * we need to be able to find the root items to serialize the tree
    * 
-   * @return std::vector<std::shared_ptr<Node>> 
+   * @return std::vector<std::shared_ptr<Item>> 
    */
-  std::vector<std::shared_ptr<Node>> getRootNodes() const;
+  std::vector<std::shared_ptr<Item>> getRootItems() const;
   /**
-   * @brief Add a node to the EMR
+   * @brief Add a item to the EMR
    * 
-   * If parent name is empty, the node will be unattached and not a part of the tree.
-   * You can call the node's setParent() method manually later.
+   * If parent name is empty, the item will be unattached and not a part of the tree.
+   * You can call the item's setParent() method manually later.
    * 
    * If the parent name is not empty, make sure the corresponding parent exists.
    * 
-   * The first node added to the EMR will be assigned as the root node.
+   * The first item added to the EMR will be assigned as the root item.
    * 
-   * @param parent name of parent node
-   * @param name name of node to be added
+   * @param parent name of parent item
+   * @param name name of item to be added
    * @param entry pointer to payload
    */
-  void addNode(std::string name, std::string parent, std::shared_ptr<PayloadEntry> entry);
+  void addItem(const std::string& name, const std::string& parent, std::shared_ptr<PayloadEntry> payload);
   /**
-   * @brief Update EMR node
+   * @brief Update EMR item
    * 
-   * @param name string name of node
+   * @param name string name of item
    * @param entry pointer to payload
    */
-  void updateNode(std::string name, std::shared_ptr<PayloadEntry> entry);
+  void updateItem(const std::string& name, std::shared_ptr<PayloadEntry> entry);
   /**
-   * @brief Get shared_ptr to node by name
+   * @brief Get shared_ptr to item by name
    * 
-   * @param node_name 
-   * @return std::shared_ptr<Node> 
+   * @param item_name 
+   * @return std::shared_ptr<Item> 
    */
-  const std::shared_ptr<Node>& getNodeByName(std::string node_name)
+  const std::shared_ptr<Item> getItemByName(std::string item_name)
   {
-    return nodes[node_name];
+    std::lock_guard<std::mutex> lock(emr_mutex);
+    return items[item_name];
   }
   /**
-   * @brief Check if EMR contains a node with the given name
+   * @brief Check if EMR contains a item with the given name
    * 
    * @param name 
-   * @return true if node exists
-   * @return false if node does not exist
+   * @return true if item exists
+   * @return false if item does not exist
    */
-  bool hasNode(std::string name);
+  bool hasItem(const std::string& name);
 
 };
 
 
 
 } // namespace emr
-} // namespace temoto_context_manager
 #endif

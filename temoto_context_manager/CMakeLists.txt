@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(temoto_context_manager)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++1y -Wno-reorder -Wno-unused-function -Wno-pedantic)
+add_compile_options(-std=c++1y -Wno-reorder -Wno-unused-function)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -13,10 +13,9 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   geometry_msgs
   shape_msgs
-  human_msgs
-  ar_track_alvar_msgs
   visualization_msgs
   diagnostic_msgs
+  tf
   tf2
   tf2_ros
   tf2_geometry_msgs
@@ -28,15 +27,16 @@ find_package(catkin REQUIRED COMPONENTS
 add_message_files(FILES 
   ObjectContainer.msg
   MapContainer.msg
-  NodeContainer.msg
+  ItemContainer.msg
+  ComponentContainer.msg
 )
 
 add_service_files(
   FILES
   GetNumber.srv
-  LoadTracker.srv
   TrackObject.srv
-  UpdateEMR.srv
+  UpdateEmr.srv
+  GetEMRItem.srv
 )
 
 generate_messages(
@@ -67,6 +67,8 @@ add_executable(temoto_context_manager
   src/context_manager.cpp
   src/context_manager_containers.cpp
   src/env_model_repository.cpp
+  src/emr_ros_interface.cpp
+  src/emr_item_to_component_link.cpp
 )
 
 add_dependencies(temoto_context_manager
@@ -78,4 +80,8 @@ target_link_libraries(temoto_context_manager
   yaml-cpp
   temoto_nlp_components
   temoto_core_components
+)
+add_library(lib_temoto_emr
+  src/emr_ros_interface.cpp
+  src/env_model_repository.cpp
 )
