@@ -1,10 +1,10 @@
 #include "ros/package.h"
+#include "temoto_core/common/ros_serialization.h"
 #include "temoto_context_manager/context_manager.h"
 #include <algorithm>
 #include <utility>
 #include <yaml-cpp/yaml.h>
 #include <fstream>
-#include "temoto_core/common/ros_serialization.h"
 
 namespace temoto_context_manager
 {
@@ -125,17 +125,22 @@ std::vector<std::string> ContextManager::getItemDetectionMethods(const std::stri
   }
   TEMOTO_INFO_STREAM("The requested item is known");
   std::string type = itemptr->getPayload()->getType();
-  if (type == "OBJECT") 
+  if (type == emr_ros_interface::emr_containers::OBJECT) 
   {
     ObjectContainer obj = emr_interface.getContainer<ObjectContainer>(name);
     return obj.detection_methods;
   }
-  else if (type == "MAP") 
+  else if (type == emr_ros_interface::emr_containers::MAP) 
   {
     MapContainer map = emr_interface.getContainer<MapContainer>(name);
     return map.detection_methods;
   }
-  else if (type == "COMPONENT")
+  else if (type == emr_ros_interface::emr_containers::ROBOT) 
+  {
+    RobotContainer robot = emr_interface.getContainer<RobotContainer>(name);
+    return robot.detection_methods;
+  }
+  else if (type == emr_ros_interface::emr_containers::COMPONENT)
   {
     throw CREATE_ERROR(temoto_core::error::Code::INVALID_CONTAINER_TYPE, "Item of type COMPONENT has no detection methods!");
   }
@@ -255,118 +260,9 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
          * Check if any segments of this pipe require knowledge about any geometrical 
          * parameters ,i.e., frames
          */
-        std::vector<diagnostic_msgs::KeyValue*> spec_ptrs;
-        std::vector<diagnostic_msgs::KeyValue*> post_spec_ptrs;
-
-        for (unsigned int i=0; i<pipe_info_msg.segments.size(); i++)
+        if (!getParameterSpecifications(pipe_info_msg, load_pipe_msg, pipe_category, req.object_name))
         {
-          const temoto_component_manager::PipeSegment& pipe_segment = pipe_info_msg.segments[i];
-          const std::vector<std::string>& required_params = pipe_segment.required_parameters;
-
-          // Check if "frame_id" is listed in the required parameters
-          if ( std::find(required_params.begin(), required_params.end(), "frame_id") == required_params.end())
-          {
-            continue;
-          }
-
-          TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires 'frame_id' parameter specifications"
-                     , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
-
-          temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
-          diagnostic_msgs::KeyValue frame_id_spec;
-
-          // Check if there are any emr-linked components that have the required type (e.g., 2D camera)
-          ComponentInfos component_infos = component_to_emr_registry_.hasLinks(pipe_segment.segment_type);
-          if (!component_infos.empty())
-          {
-           TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' can be specified in-place"
-                     , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
-
-            // TODO: Implement a selection metric
-            temoto_component_manager::Component& chosen_component = component_infos[0];
-            frame_id_spec.key = "frame_id";
-            frame_id_spec.value = chosen_component.component_name;
-            pipe_seg_spec.component_name = chosen_component.component_name; 
-            pipe_seg_spec.segment_index = i;
-            pipe_seg_spec.parameters.push_back(frame_id_spec);
-            load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
-            load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
-
-            // TODO: That's the most horriffic beast i've ever created. Slay it asap. The idea is
-            // that instead of maintaining indexes to pipe segments, its simpler to keep the pointers
-            // to specific parameters
-            spec_ptrs.push_back(&(load_pipe_msg.request.pipe_segment_specifiers.back().parameters.back()));
-          }
-          else
-          {
-            TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires post-specification"
-                     , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
-
-            // If no emr-linked components were found then this is either an currently not defined
-            // EMR item, or this component does not have geometry, i.e., it's an algorithm
-            // Mark this component to be assessed after each segment has been checked
-            frame_id_spec.key = "frame_id";
-            pipe_seg_spec.segment_index = i;
-            pipe_seg_spec.parameters.push_back(frame_id_spec);       
-            load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
-
-            // TODO: That's the most horriffic beast i've ever created. Slay it asap. The idea is
-            // that instead of maintaining indexes to pipe segments, its simpler to keep the pointers
-            // to specific parameters
-            post_spec_ptrs.push_back(&(load_pipe_msg.request.pipe_segment_specifiers.back().parameters.back()));
-          }
-        }
-
-        /*
-         * Check if there were any post spec segments
-         */ 
-        if (!post_spec_ptrs.empty())
-        {
-          TEMOTO_DEBUG("Trying to post-specify %d segments of pipe '%s'", post_spec_ptrs.size()
-            , pipe_category.c_str());
-
-          // If this pipe contains segments that need specifications but cannot be specified
-          // then this pipe cannot be used
-          if (spec_ptrs.empty())
-          {
-            TEMOTO_DEBUG("Cannot post-specify any segments of pipe '%s' because there are no"
-             "in-place specificationss", pipe_category.c_str());
-            continue;
-          }
-
-          // Go through the parameters which need post 
-          for (auto post_spec_ptr : post_spec_ptrs)
-          {
-            // Look the spec information from specified parameters
-            for (auto spec_ptr : spec_ptrs)
-            {
-              if (post_spec_ptr->key == spec_ptr->key)
-              {
-                TEMOTO_DEBUG("Post-specifying '%s'(key) as '%s'(value)", post_spec_ptr->key.c_str()
-                  , spec_ptr->value.c_str());
-                // TODO: the post_spec_ptr->value might be overwritten
-                post_spec_ptr->value = spec_ptr->value;
-              }
-            } 
-          }
-
-          // Check if all post parameters have been specified
-          bool parameters_specified = true;
-          for (auto post_spec_ptr : post_spec_ptrs)
-          {
-            if (post_spec_ptr->value.empty())
-            {
-              parameters_specified = false;
-              break;
-            }
-          }
-
-          // If some parameters are still without a value, then this pipe
-          // cannot be used
-          if (!parameters_specified)
-          {
-            continue;
-          }
+          continue;
         }
 
         load_pipe_msg.request.pipe_category = pipe_category;
@@ -643,6 +539,193 @@ std::vector<std::string> ContextManager::getOrderedDetectionMethods()
   }
 
   return odm_vec;
+}
+
+bool ContextManager::getParameterSpecifications( const temoto_component_manager::Pipe& pipe_info_msg
+                                               , temoto_component_manager::LoadPipe& load_pipe_msg
+                                               , const std::string& pipe_category
+                                               , const std::string& requested_emr_item_name)
+{
+  /*
+   * Check if any segments of this pipe require knowledge about any geometrical 
+   * parameters ,i.e., frames
+   */
+  std::vector<diagnostic_msgs::KeyValue*> spec_ptrs;
+  std::vector<diagnostic_msgs::KeyValue*> post_spec_ptrs;
+
+  for (unsigned int i=0; i<pipe_info_msg.segments.size(); i++)
+  {
+    const temoto_component_manager::PipeSegment& pipe_segment = pipe_info_msg.segments[i];
+    const std::vector<std::string>& required_params = pipe_segment.required_parameters;
+
+    /*
+     * Loop through the required parameters
+     */ 
+    for (const auto& required_param : required_params)
+    {
+      /*
+       * Frame ID specification
+       */ 
+      if (required_param == "frame_id")
+      {
+        TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires 'frame_id' parameter specifications"
+                , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
+
+        temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
+        diagnostic_msgs::KeyValue frame_id_spec;
+
+        // Check if there are any emr-linked components that have the required type (e.g., 2D camera)
+        ComponentInfos component_infos = component_to_emr_registry_.hasLinks(pipe_segment.segment_type);
+        if (!component_infos.empty())
+        {
+          TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' can be specified in-place"
+                    , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
+
+          // TODO: Implement a selection metric
+          temoto_component_manager::Component& chosen_component = component_infos[0];
+          frame_id_spec.key = "frame_id";
+          frame_id_spec.value = chosen_component.component_name;
+          pipe_seg_spec.component_name = chosen_component.component_name; 
+          pipe_seg_spec.segment_index = i;
+          pipe_seg_spec.parameters.push_back(frame_id_spec);
+          load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+          load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
+
+          // TODO: That's the most horriffic beast i've ever created. Slay it asap. The idea is
+          // that instead of maintaining indexes to pipe segments, its simpler to keep the pointers
+          // to specific parameters
+          spec_ptrs.push_back(&(load_pipe_msg.request.pipe_segment_specifiers.back().parameters.back()));
+        }
+        else
+        {
+          TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires post-specification"
+                    , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
+
+          // If no emr-linked components were found then this is either an currently not defined
+          // EMR item, or this component does not have geometry, i.e., it's an algorithm
+          // Mark this component to be assessed after each segment has been checked
+          frame_id_spec.key = "frame_id";
+          pipe_seg_spec.segment_index = i;
+          pipe_seg_spec.parameters.push_back(frame_id_spec);       
+          load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+
+          // TODO: That's the most horriffic beast i've ever created. Slay it asap. The idea is
+          // that instead of maintaining indexes to pipe segments, its simpler to keep the pointers
+          // to specific parameters
+          post_spec_ptrs.push_back(&(load_pipe_msg.request.pipe_segment_specifiers.back().parameters.back()));
+        }
+      }
+      
+      /*
+       * Odometry Frame ID specification
+       */
+      else if (required_param == "odom_frame_id")
+      {
+        TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires 'odom_frame_id' parameter specifications"
+                    , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
+
+        temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
+        diagnostic_msgs::KeyValue odom_frame_id_spec;
+        RobotContainer rc;
+        try
+        {
+          rc = emr_interface.getContainer<RobotContainer>(requested_emr_item_name);
+          odom_frame_id_spec.key = "odom_frame_id";
+          odom_frame_id_spec.value = rc.odom_frame_id; 
+          pipe_seg_spec.segment_index = i;
+          pipe_seg_spec.parameters.push_back(odom_frame_id_spec);
+          load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+          load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
+        }
+        catch(const std::exception& e)
+        {
+          std::cerr << e.what() << '\n';
+          return false;
+        }
+      }
+
+      /*
+       * Base Link Frame ID specification
+       */
+      else if (required_param == "base_frame_id")
+      {
+        TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires 'base_frame_id' parameter specifications"
+                    , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
+
+        temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
+        diagnostic_msgs::KeyValue base_frame_id_spec;
+        RobotContainer rc;
+        try
+        {
+          rc = emr_interface.getContainer<RobotContainer>(requested_emr_item_name);
+          base_frame_id_spec.key = "base_frame_id";
+          base_frame_id_spec.value = rc.base_frame_id; 
+          pipe_seg_spec.segment_index = i;
+          pipe_seg_spec.parameters.push_back(base_frame_id_spec);
+          load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+          load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
+        }
+        catch(const std::exception& e)
+        {
+          std::cerr << e.what() << '\n';
+          return false;
+        }
+      }
+    }
+
+    /*
+     * Check if there were any post spec segments
+     */ 
+    if (!post_spec_ptrs.empty())
+    {
+      TEMOTO_DEBUG("Trying to post-specify %lu segments of pipe '%s'", post_spec_ptrs.size()
+        , pipe_category.c_str());
+
+      // If this pipe contains segments that need specifications but cannot be specified
+      // then this pipe cannot be used
+      if (spec_ptrs.empty())
+      {
+        TEMOTO_DEBUG("Cannot post-specify any segments of pipe '%s' because there are no"
+          "in-place specificationss", pipe_category.c_str());
+        return false;
+      }
+
+      // Go through the parameters which need post 
+      for (auto post_spec_ptr : post_spec_ptrs)
+      {
+        // Look the spec information from specified parameters
+        for (auto spec_ptr : spec_ptrs)
+        {
+          if (post_spec_ptr->key == spec_ptr->key)
+          {
+            TEMOTO_DEBUG("Post-specifying '%s'(key) as '%s'(value)", post_spec_ptr->key.c_str()
+              , spec_ptr->value.c_str());
+            // TODO: the post_spec_ptr->value might be overwritten
+            post_spec_ptr->value = spec_ptr->value;
+          }
+        } 
+      }
+
+      // Check if all post parameters have been specified
+      bool parameters_specified = true;
+      for (auto post_spec_ptr : post_spec_ptrs)
+      {
+        if (post_spec_ptr->value.empty())
+        {
+          parameters_specified = false;
+          break;
+        }
+      }
+
+      // If some parameters are still without a value, then this pipe
+      // cannot be used
+      if (!parameters_specified)
+      {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 }  // namespace temoto_context_manager

@@ -76,6 +76,7 @@ public:
   Container getContainer(const std::string& name)
   {
     std::lock_guard<std::mutex> lock(emr_iface_mutex);
+    // TODO: What if a null pointer is returned?
     return getRosPayloadPtr<Container>(name)->getPayload();
   }
   template<class Container>
