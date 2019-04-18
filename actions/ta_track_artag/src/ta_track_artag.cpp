@@ -103,6 +103,19 @@ void startInterface_0()
   TEMOTO_INFO_STREAM("Receiving information on topics:" << topic);
   artag_subscriber_ = nh_.subscribe(topic, 1000, &TaTrackArtag::artagDataCb, this);
 
+  try
+  {
+  temoto_context_manager::MapContainer map = 
+    emr_interface_ptr->
+      getNearestParentOfType<temoto_context_manager::MapContainer>(object_name);
+  TEMOTO_WARN_STREAM("Highest parent map: " << map.name);
+  }
+  catch(const std::exception& e)
+  {
+    ROS_ERROR_STREAM(e.what());
+  }
+
+
   for (auto topic_pair : topic_container.getOutputTopics())
   {
     TEMOTO_INFO_STREAM("* type: " << topic_pair.first << "; topic: " << topic_pair.second);

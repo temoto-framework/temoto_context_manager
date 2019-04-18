@@ -154,6 +154,34 @@ public:
     temp.pose = newPose;
     plptr->setPayload(temp);
   }
+  template <class Container>
+Container getNearestParentOfType(const std::string& name)
+{
+  std::shared_ptr<emr::Item> itemptr = env_model_repository_.getItemByName(name);
+  if (itemptr->isRoot()) 
+    ROS_ERROR_STREAM("ROOT ITEM HAS NO PARENTS.");
+  std::string nearest = 
+          getNearestParentHelper(parseContainerType<Container>(), itemptr->getParent().lock());
+  return getContainer<Container>(nearest);
+}
+
+std::string getNearestParentHelper(const std::string& type, const std::shared_ptr<emr::Item>& itemptr)
+{
+  if (itemptr->getPayload()->getType() == type) 
+  {
+    return itemptr->getPayload()->getName();
+  }
+  else
+  {
+    // Check if there is a parent
+    if (itemptr->isRoot()) 
+    {
+      ROS_ERROR_STREAM("No parent item of type" << type << "found in EMR!");
+      return "";
+    }
+    return getNearestParentHelper(type, itemptr->getParent().lock());
+  }
+}
 private:
   emr::EnvironmentModelRepository& env_model_repository_;
   std::string identifier_;
@@ -166,17 +194,36 @@ private:
   
   void emrTfCallback(const ros::TimerEvent&);
   template <class Container>
-  void publishContainerTf(const std::string& type, const Container& container);
+  void publishContainerTf(const Container& container);
 
   /**
    * @brief Moves up the tree, returning the closest container of type Container
    * 
    * @tparam Container 
    */
+  
   template <class Container>
-  Container getNearestParentOfType(const std::string& name);
-  template <class Container>
-  std::string parseContainerType(Container container);
+  std::string parseContainerType()
+  {
+    if (std::is_same<Container, temoto_context_manager::ObjectContainer>::value) 
+    {
+      return emr_containers::OBJECT;
+    }
+    else if (std::is_same<Container, temoto_context_manager::MapContainer>::value) 
+    {
+      return emr_containers::MAP;
+    }
+    else if (std::is_same<Container, temoto_context_manager::ComponentContainer>::value) 
+    {
+      return emr_containers::COMPONENT;
+    }
+    else if (std::is_same<Container, temoto_context_manager::RobotContainer>::value) 
+    {
+      return emr_containers::ROBOT;
+    }
+    ROS_ERROR_STREAM("UNRECOGNIZED TYPE");
+    return "FAULTY_TYPE";
+  }
 };
 
 } // namespace emr_ros_interface
