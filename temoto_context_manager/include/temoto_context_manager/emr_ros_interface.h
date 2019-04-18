@@ -166,6 +166,16 @@ private:
   void emrTfCallback(const ros::TimerEvent&);
   template <class Container>
   void publishContainerTf(const std::string& type, const Container& container);
+
+  /**
+   * @brief Moves up the tree, returning the closest container of type Container
+   * 
+   * @tparam Container 
+   */
+  template <class Container>
+  Container getNearestParentOfType(const std::string& name);
+  template <class Container>
+  std::string parseContainerType(Container container);
 };
 
 } // namespace emr_ros_interface

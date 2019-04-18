@@ -254,5 +254,52 @@ std::string EmrRosInterface::modifyName(const std::string& name_in)
 
   return name_alnum;
 }
+template <class Container>
+std::string EmrRosInterface::parseContainerType(Container container)
+{
+  if (std::is_same<Container, ObjectContainer>::value) 
+  {
+    return "OBJECT";
+  }
+  else if (std::is_same<Container, MapContainer>::value) 
+  {
+    return "MAP";
+  }
+  else if (std::is_same<Container, ComponentContainer>::value) 
+  {
+    return "COMPONENT";
+  }
+  ROS_ERROR_STREAM("UNRECOGNIZED TYPE");
+  return "FAULTY_TYPE";
+}
+template <class Container>
+Container EmrRosInterface::getNearestParentOfType(const std::string& name)
+{
+  std::shared_ptr<emr::Item> itemptr = env_model_repository_.getItemByName(name);
+  if (itemptr->isRoot()) 
+    ROS_ERROR_STREAM("ROOT ITEM HAS NO PARENTS.");
+  std::string nearest = 
+          getNearestParentHelper(itemptr->getPayload->getType(), itemptr->getParent().lock());
+  return getContainer<Container>(nearest);
+}
+
+std::string getNearestParentHelper(const std::string& type, const std::shared_ptr<emr::Item>& itemptr)
+{
+  std::shared_ptr<emr::Item> itemptr = env_model_repository_.getItemByName(current);
+  if (itemptr->getPayload()->getType() == type) 
+  {
+    return itemptr->getPayload()->getName();
+  }
+  else
+  {
+    // Check if there is a parent
+    if (itemptr->isRoot()) 
+    {
+      ROS_ERROR_STREAM("No parent item of type" << type << found in EMR!);
+      return "";
+    }
+    return getNearestParentHelper(type, itemptr->getParent().lock());
+  }
+}
 
 } // namespace emr_ros_interface
