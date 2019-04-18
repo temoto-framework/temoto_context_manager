@@ -5,11 +5,10 @@
 #include "temoto_core/common/temoto_id.h"
 #include "temoto_core/common/console_colors.h"
 #include "temoto_core/common/topic_container.h"
+#include "temoto_core/common/ros_serialization.h"
 #include "temoto_nlp/base_task/base_task.h"
 #include "temoto_context_manager/context_manager_services.h"
-#include "temoto_context_manager/MapContainer.h"
-#include "temoto_context_manager/ComponentContainer.h"
-#include "temoto_core/common/ros_serialization.h"
+#include "temoto_context_manager/context_manager_containers.h"
 
 #include "std_msgs/Float32.h"
 #include "std_msgs/String.h"
@@ -157,20 +156,23 @@ public:
         // Check the type of the container
         if (std::is_same<Container, ObjectContainer>::value) 
         {
-          nc.type = "OBJECT";
+          nc.type = emr_ros_interface::emr_containers::OBJECT;
         }
         else if (std::is_same<Container, MapContainer>::value) 
         {
-          nc.type = "MAP";
+          nc.type = emr_ros_interface::emr_containers::MAP;
         }
         else if (std::is_same<Container, ComponentContainer>::value) 
         {
-          nc.type = "COMPONENT";
+          nc.type = emr_ros_interface::emr_containers::COMPONENT;
+        }
+        else if (std::is_same<Container, RobotContainer>::value) 
+        {
+          nc.type = emr_ros_interface::emr_containers::ROBOT;
         }
         nc.serialized_container = temoto_core::serializeROSmsg(container);
         item_containers.push_back(nc);
       }
-      
     }
     UpdateEmr update_EMR_srvmsg;
     update_EMR_srvmsg.request.items = item_containers;
@@ -184,24 +186,29 @@ public:
     TEMOTO_INFO_STREAM("Call to " << srv_name::SERVER_UPDATE_EMR << " was successful");
     for (auto item_container : update_EMR_srvmsg.response.failed_items)
     {
-      if (item_container.type == "OBJECT") {
+      if (item_container.type == emr_ros_interface::emr_containers::OBJECT) {
         auto container = temoto_core::deserializeROSmsg<ObjectContainer>
                                 (item_container.serialized_container);
         TEMOTO_INFO_STREAM("Failed to add item: " << container.name << std::endl);
       }
-      else if (item_container.type == "MAP")
+      else if (item_container.type == emr_ros_interface::emr_containers::MAP)
       {
         auto container = temoto_core::deserializeROSmsg<ObjectContainer>
                                 (item_container.serialized_container);
         TEMOTO_INFO_STREAM("Failed to add item: " << container.name << std::endl);
       }
-      else if (item_container.type == "COMPONENT")
+      else if (item_container.type == emr_ros_interface::emr_containers::COMPONENT)
       {
         auto container = temoto_core::deserializeROSmsg<ComponentContainer>
                                 (item_container.serialized_container);
         TEMOTO_INFO_STREAM("Failed to add item: " << container.name << std::endl);
       }
-      
+      else if (item_container.type == emr_ros_interface::emr_containers::ROBOT)
+      {
+        auto container = temoto_core::deserializeROSmsg<RobotContainer>
+                                (item_container.serialized_container);
+        TEMOTO_INFO_STREAM("Failed to add item: " << container.name << std::endl);
+      }
     }
   }
 

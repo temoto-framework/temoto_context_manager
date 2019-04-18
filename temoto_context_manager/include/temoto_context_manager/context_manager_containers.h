@@ -5,8 +5,22 @@
 #include "temoto_context_manager/MapContainer.h"
 #include "temoto_context_manager/ItemContainer.h"
 #include "temoto_context_manager/ComponentContainer.h"
+#include "temoto_context_manager/RobotContainer.h"
 #include "temoto_core/common/topic_container.h"
 #include "temoto_context_manager/env_model_repository.h"
+
+namespace emr_ros_interface
+{
+  namespace emr_containers
+  {
+    const std::string OBJECT = "OBJECT";
+    const std::string MAP = "MAP";
+    const std::string ROBOT = "ROBOT";
+    const std::string COMPONENT = "COMPONENT";
+  } // emr_containers namespace
+} // emr_ros_interface namespace
+
+// TODO: this namespace should be renamed to "emr_ros_interface"
 namespace temoto_context_manager
 {
 
@@ -16,6 +30,8 @@ typedef std::shared_ptr<ObjectContainer> ObjectPtr;
 typedef std::vector<ObjectPtr> ObjectPtrs;
 typedef std::vector<ItemContainer> Items;
 typedef std::shared_ptr<emr::Item> ItemPtr;
+
+
 
 // ObjectContainer comparison operator
 bool operator==(const ObjectContainer& ob1, const ObjectContainer& ob2);

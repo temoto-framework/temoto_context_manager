@@ -29,6 +29,7 @@ add_message_files(FILES
   MapContainer.msg
   ItemContainer.msg
   ComponentContainer.msg
+  RobotContainer.msg
 )
 
 add_service_files(
