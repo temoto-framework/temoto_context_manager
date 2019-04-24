@@ -1,10 +1,10 @@
-# REQUIRED - Name of the map
+# REQUIRED - Name of the robot
 string name
 
-# REQUIRED - How this Map can be acquired
+# REQUIRED - How the location of this robot can be acquired
 string[] detection_methods
 
-# Name of EMR parent node
+# Name of EMR parent item
 string parent
 
 string odom_frame_id

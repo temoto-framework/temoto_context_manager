@@ -76,6 +76,7 @@ public:
   template<class Container>
   Container getContainer(const std::string& name)
   {
+    
     std::lock_guard<std::mutex> lock(emr_iface_mutex);
     // TODO: What if a null pointer is returned?
     return getRosPayloadPtr<Container>(name)->getPayload();
@@ -89,6 +90,7 @@ public:
   template<class Container>
   std::shared_ptr<RosPayload<Container>> getRosPayloadPtr(const std::string& name)
   {
+    if (!hasItem(modifyName(name))) ROS_ERROR_STREAM("NO ITEM " << modifyName(name) << " FOUND");
     return std::dynamic_pointer_cast<RosPayload<Container>>
       (env_model_repository_.getItemByName(modifyName(name))->getPayload());
   }
@@ -121,7 +123,49 @@ public:
   bool addOrUpdateEmrItem(const Container & container, 
                           const std::string& container_type, 
                           const temoto_context_manager::ItemContainer& ic, 
-                          const bool update_time);
+                          const bool update_time)
+  {
+  RosPayload<Container> rospl = RosPayload<Container>(container);
+  rospl.setType(container_type);
+  std::string name = modifyName(container.name);
+  std::string parent = modifyName(container.parent);
+
+  // Check for empty name field
+  // Move these to the context manager interface maybe? TBD
+  if (name == "") 
+  {
+    ROS_ERROR_STREAM("Empty string not allowed as EMR item name!");
+    return false;
+  }
+  // Check if the parent exists
+  if ((!parent.empty()) && (!env_model_repository_.hasItem(parent))) 
+  {
+    ROS_ERROR_STREAM("No parent with name " << parent << " found in EMR!");
+    return false;
+  }
+  
+  // Check if the object has to be added or updated
+  if (!env_model_repository_.hasItem(name))
+  {
+    // Add the new item
+    // TODO: resolve tf_prefixes, if type == component or robot, prepend maintainer
+    rospl.setMaintainer(ic.maintainer);
+    std::shared_ptr<RosPayload<Container>> plptr = std::make_shared<RosPayload<Container>>(rospl);
+    env_model_repository_.addItem(name, parent, plptr);
+  }
+  else
+  {
+    if (rospl.getTime() > getRosPayloadPtr<Container>(name)->getTime()) 
+    {
+      // Update the item information
+      if (update_time) rospl.updateTime();
+      std::shared_ptr<RosPayload<Container>> plptr = std::make_shared<RosPayload<Container>>(rospl);
+      env_model_repository_.updateItem(name, plptr);
+      ROS_INFO_STREAM("Updated item: " << name);
+    }
+  }
+  return true;
+}
 
   /**
    * @brief Save the EMR state as a temoto_context_manager::ItemContainer vector
@@ -158,7 +202,7 @@ public:
   template <class Container>
 Container getNearestParentOfType(const std::string& name)
 {
-  std::shared_ptr<emr::Item> itemptr = env_model_repository_.getItemByName(name);
+  std::shared_ptr<emr::Item> itemptr = env_model_repository_.getItemByName(modifyName(name));
   if (itemptr->isRoot()) 
     ROS_ERROR_STREAM("ROOT ITEM HAS NO PARENTS.");
   std::string nearest = 
@@ -182,6 +226,10 @@ std::string getNearestParentHelper(const std::string& type, const std::shared_pt
     }
     return getNearestParentHelper(type, itemptr->getParent().lock());
   }
+}
+const std::shared_ptr<emr::Item> getItemByName(std::string item_name)
+{
+  return env_model_repository_.getItemByName(modifyName(item_name));
 }
 private:
   emr::EnvironmentModelRepository& env_model_repository_;

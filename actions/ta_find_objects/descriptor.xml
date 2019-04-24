@@ -1,0 +1,8 @@
+<task action="find">
+    <interface id="0" type="asynchronous">
+        <in>
+            <what word="objects">
+            </what>
+        </in>
+    </interface>
+</task>

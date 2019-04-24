@@ -118,11 +118,11 @@ void ContextManager::advertiseEmr()
 }
 std::vector<std::string> ContextManager::getItemDetectionMethods(const std::string& name)
 {
-  ItemPtr itemptr = env_model_repository_.getItemByName(name);
-  if (itemptr == nullptr) 
+  if (!emr_interface.hasItem(name))
   {
     throw CREATE_ERROR(temoto_core::error::Code::UNKNOWN_OBJECT, "Item " + name + " not found!");
   }
+  ItemPtr itemptr = emr_interface.getItemByName(name);
   TEMOTO_INFO_STREAM("The requested item is known");
   std::string type = itemptr->getPayload()->getType();
   if (type == emr_ros_interface::emr_containers::OBJECT) 
@@ -657,13 +657,16 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
         RobotContainer rc;
         try
         {
+          TEMOTO_WARN_STREAM("1");
           rc = emr_interface.getContainer<RobotContainer>(requested_emr_item_name);
+          TEMOTO_WARN_STREAM("2");
           base_frame_id_spec.key = "base_frame_id";
           base_frame_id_spec.value = rc.base_frame_id; 
           pipe_seg_spec.segment_index = i;
           pipe_seg_spec.parameters.push_back(base_frame_id_spec);
           load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
           load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
+          TEMOTO_WARN_STREAM("3");
         }
         catch(const std::exception& e)
         {
@@ -705,6 +708,7 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
       }
     }
 
+    TEMOTO_WARN_STREAM("4");
     /*
      * Check if there were any post spec segments
      */ 
@@ -721,7 +725,7 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
           "in-place specificationss", pipe_category.c_str());
         return false;
       }
-
+      TEMOTO_WARN_STREAM("5");
       // Go through the parameters which need post 
       for (auto post_spec_ptr : post_spec_ptrs)
       {
@@ -737,7 +741,7 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
           }
         } 
       }
-
+      TEMOTO_WARN_STREAM("6");
       // Check if all post parameters have been specified
       bool parameters_specified = true;
       for (auto post_spec_ptr : post_spec_ptrs)
