@@ -134,6 +134,7 @@ bool EmrRosInterface::addOrUpdateEmrItem(
   if (!env_model_repository_.hasItem(name)) 
   {
     // Add the new item
+    // TODO: resolve tf_prefixes, if type == component or robot, prepend maintainer
     rospl.setMaintainer(ic.maintainer);
     std::shared_ptr<RosPayload<Container>> plptr = std::make_shared<RosPayload<Container>>(rospl);
     env_model_repository_.addItem(name, parent, plptr);

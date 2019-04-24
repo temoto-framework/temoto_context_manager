@@ -69,6 +69,7 @@ class EmrRosInterface
 public:
   EmrRosInterface(emr::EnvironmentModelRepository& emr, std::string identifier) : env_model_repository_(emr), identifier_(identifier) 
   {
+    // TODO: Move this to context manager
     tf_timer_ = nh_.createTimer(ros::Duration(0.1), &EmrRosInterface::emrTfCallback, this);
   }
 
