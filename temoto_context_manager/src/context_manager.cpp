@@ -677,13 +677,29 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
        */
       else if (required_param == "map_topic")
       {
-        MapContainer mc = emr_interface.getNearestParentOfType<MapContainer>(emr_ros_interface::emr_containers::MAP);
+        MapContainer mc = emr_interface.getNearestParentOfType<MapContainer>(requested_emr_item_name);
         temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
         diagnostic_msgs::KeyValue map_topic_spec;
         map_topic_spec.key = "map_topic";
         map_topic_spec.value = mc.topic;
         pipe_seg_spec.segment_index = i;
         pipe_seg_spec.parameters.push_back(map_topic_spec);
+        load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+        load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
+      }
+
+      /*
+       * Map Frame ID specification
+       */
+      else if (required_param == "map_frame_id")
+      {
+        MapContainer mc = emr_interface.getNearestParentOfType<MapContainer>(requested_emr_item_name);
+        temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
+        diagnostic_msgs::KeyValue map_frame_id_spec;
+        map_frame_id_spec.key = "map_frame_id";
+        map_frame_id_spec.value = mc.name;
+        pipe_seg_spec.segment_index = i;
+        pipe_seg_spec.parameters.push_back(map_frame_id_spec);
         load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
         load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
       }
