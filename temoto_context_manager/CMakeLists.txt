@@ -38,6 +38,7 @@ add_service_files(
   TrackObject.srv
   UpdateEmr.srv
   GetEMRItem.srv
+  GetEMRVector.srv
 )
 
 generate_messages(

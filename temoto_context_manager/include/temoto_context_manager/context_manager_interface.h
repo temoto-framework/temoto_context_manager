@@ -54,6 +54,17 @@ public:
     // Add EMR service client
     update_EMR_client_ = nh_.serviceClient<UpdateEmr>(srv_name::SERVER_UPDATE_EMR);
     get_emr_item_client_ = nh_.serviceClient<GetEMRItem>(srv_name::SERVER_GET_EMR_ITEM);
+    get_emr_vector_client_ = nh_.serviceClient<GetEMRVector>(srv_name::SERVER_GET_EMR_VECTOR);
+  }
+
+  std::vector<ItemContainer> getEmrVector()
+  {
+    GetEMRVector srv_msg;
+    if (!get_emr_vector_client_.call<GetEMRVector>(srv_msg)) 
+    {
+      throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
+    }
+    return srv_msg.response.items;
   }
   /**
    * @brief Get a container from the EMR
@@ -82,7 +93,8 @@ public:
       {
         srv_msg.request.type = "MAP";
       }
-      if (!get_emr_item_client_.call<GetEMRItem>(srv_msg)) {
+      if (!get_emr_item_client_.call<GetEMRItem>(srv_msg)) 
+      {
         throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
       }
       TEMOTO_INFO("Got a response! ");
@@ -356,6 +368,7 @@ private:
   ros::NodeHandle nh_;
   ros::ServiceClient update_EMR_client_;
   ros::ServiceClient get_emr_item_client_;
+  ros::ServiceClient get_emr_vector_client_;
 
   std::vector<TrackObject> allocated_track_objects_;
 

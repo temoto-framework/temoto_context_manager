@@ -34,6 +34,8 @@ ContextManager::ContextManager()
   TEMOTO_INFO("Starting the EMR update server");
   update_emr_server_ = nh_.advertiseService(srv_name::SERVER_UPDATE_EMR, &ContextManager::updateEmrCb, this);
   get_emr_item_server_ = nh_.advertiseService(srv_name::SERVER_GET_EMR_ITEM, &ContextManager::getEmrItemCb, this);
+
+  get_emr_vector_server_ = nh_.advertiseService(srv_name::SERVER_GET_EMR_VECTOR, &ContextManager::getEmrVectorCb, this);
   
   // Request remote EMR configurations
   emr_syncer_.requestRemoteConfigs();
@@ -164,6 +166,11 @@ bool ContextManager::getEmrItem(const std::string& name, std::string type, ItemC
     TEMOTO_ERROR_STREAM("Unrecognized container type specified: " << type << std::endl);
     return false;
   }
+}
+bool ContextManager::getEmrVectorCb(GetEMRVector::Request& req, GetEMRVector::Response& res)
+{
+  res.items = emr_interface.EmrToVector();
+  return true;
 }
 std::vector<std::string> ContextManager::getItemDetectionMethods(const std::string& name)
 {

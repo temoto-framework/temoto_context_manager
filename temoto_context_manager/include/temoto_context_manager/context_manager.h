@@ -40,6 +40,8 @@ private:
 
   bool getEmrItemCb(GetEMRItem::Request& req, GetEMRItem::Response& res);
 
+  bool getEmrVectorCb(GetEMRVector::Request& req, GetEMRVector::Response& res);
+
   void trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload);
 
   /**
@@ -118,6 +120,8 @@ private:
   ros::ServiceServer update_emr_server_;
 
   ros::ServiceServer get_emr_item_server_;
+
+  ros::ServiceServer get_emr_vector_server_;
 
   ObjectPtrs objects_;
 
