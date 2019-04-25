@@ -38,6 +38,8 @@ private:
   
   bool updateEmrCb(UpdateEmr::Request& req, UpdateEmr::Response& res);
 
+  bool getEmrItemCb(GetEMRItem::Request& req, GetEMRItem::Response& res);
+
   void trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload);
 
   /**
@@ -48,7 +50,9 @@ private:
    * @return true 
    * @return false 
    */
-  bool getEMRNode(const std::string& name, std::string type, NodeContainer& container);
+  template <class Container> 
+  bool getEmrItemHelper(const std::string& name, std::string type, ItemContainer& container);
+  bool getEmrItem(const std::string& name, std::string type, ItemContainer& container);
   /**
    * @brief Update the EMR structure with new information
    * 

@@ -232,6 +232,28 @@ const std::shared_ptr<emr::Item> getItemByName(std::string item_name)
 {
   return env_model_repository_.getItemByName(temoto_core::common::toSnakeCase(item_name));
 }
+template <class Container>
+std::string parseContainerType()
+{
+  if (std::is_same<Container, temoto_context_manager::ObjectContainer>::value) 
+  {
+    return emr_containers::OBJECT;
+  }
+  else if (std::is_same<Container, temoto_context_manager::MapContainer>::value) 
+  {
+    return emr_containers::MAP;
+  }
+  else if (std::is_same<Container, temoto_context_manager::ComponentContainer>::value) 
+  {
+    return emr_containers::COMPONENT;
+  }
+  else if (std::is_same<Container, temoto_context_manager::RobotContainer>::value) 
+  {
+    return emr_containers::ROBOT;
+  }
+  ROS_ERROR_STREAM("UNRECOGNIZED TYPE");
+  return "FAULTY_TYPE";
+}
 private:
   emr::EnvironmentModelRepository& env_model_repository_;
   std::string identifier_;
@@ -250,28 +272,7 @@ private:
    * @tparam Container 
    */
   
-  template <class Container>
-  std::string parseContainerType()
-  {
-    if (std::is_same<Container, temoto_context_manager::ObjectContainer>::value) 
-    {
-      return emr_containers::OBJECT;
-    }
-    else if (std::is_same<Container, temoto_context_manager::MapContainer>::value) 
-    {
-      return emr_containers::MAP;
-    }
-    else if (std::is_same<Container, temoto_context_manager::ComponentContainer>::value) 
-    {
-      return emr_containers::COMPONENT;
-    }
-    else if (std::is_same<Container, temoto_context_manager::RobotContainer>::value) 
-    {
-      return emr_containers::ROBOT;
-    }
-    ROS_ERROR_STREAM("UNRECOGNIZED TYPE");
-    return "FAULTY_TYPE";
-  }
+  
 };
 
 } // namespace emr_ros_interface
