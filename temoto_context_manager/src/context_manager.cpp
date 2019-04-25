@@ -608,6 +608,29 @@ std::vector<std::string> ContextManager::getOrderedDetectionMethods()
   return odm_vec;
 }
 
+void addSpecifierToSegment( diagnostic_msgs::KeyValue& parameter
+                          , std::vector<temoto_component_manager::PipeSegmentSpecifier>& seg_specifiers
+                          , unsigned int segment_index)
+{
+  bool seg_specifier_exists = false;
+  for (auto& seg_specifier : seg_specifiers)
+  {
+    if (seg_specifier.segment_index == segment_index)
+    {
+      seg_specifier.parameters.push_back(parameter);
+      seg_specifier_exists = true;
+      break;
+    }
+  }
+  if (!seg_specifier_exists)
+  {
+    temoto_component_manager::PipeSegmentSpecifier seg_specifier;
+    seg_specifier.segment_index = segment_index;
+    seg_specifier.parameters.push_back(parameter);
+    seg_specifiers.push_back(seg_specifier);
+  }
+}
+
 bool ContextManager::getParameterSpecifications( const temoto_component_manager::Pipe& pipe_info_msg
                                                , temoto_component_manager::LoadPipe& load_pipe_msg
                                                , const std::string& pipe_category
@@ -654,8 +677,8 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
           frame_id_spec.value = chosen_component.component_name;
           pipe_seg_spec.component_name = chosen_component.component_name; 
           pipe_seg_spec.segment_index = i;
-          pipe_seg_spec.parameters.push_back(frame_id_spec);
           load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+          addSpecifierToSegment(frame_id_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
           load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
 
           // TODO: That's the most horriffic beast i've ever created. Slay it asap. The idea is
@@ -672,9 +695,7 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
           // EMR item, or this component does not have geometry, i.e., it's an algorithm
           // Mark this component to be assessed after each segment has been checked
           frame_id_spec.key = "frame_id";
-          pipe_seg_spec.segment_index = i;
-          pipe_seg_spec.parameters.push_back(frame_id_spec);       
-          load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+          addSpecifierToSegment(frame_id_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
 
           // TODO: That's the most horriffic beast i've ever created. Slay it asap. The idea is
           // that instead of maintaining indexes to pipe segments, its simpler to keep the pointers
@@ -690,18 +711,13 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
       {
         TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires 'odom_frame_id' parameter specifications"
                     , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
-
-        temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
-        diagnostic_msgs::KeyValue odom_frame_id_spec;
-        RobotContainer rc;
         try
         {
-          rc = emr_interface.getContainer<RobotContainer>(requested_emr_item_name);
+          diagnostic_msgs::KeyValue odom_frame_id_spec;
+          RobotContainer rc = emr_interface.getContainer<RobotContainer>(requested_emr_item_name);
           odom_frame_id_spec.key = "odom_frame_id";
-          odom_frame_id_spec.value = temoto_core::common::getTemotoNamespace() + "/" + rc.odom_frame_id; 
-          pipe_seg_spec.segment_index = i;
-          pipe_seg_spec.parameters.push_back(odom_frame_id_spec);
-          load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+          odom_frame_id_spec.value = rc.odom_frame_id; 
+          addSpecifierToSegment(odom_frame_id_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
           load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
         }
         catch(const std::exception& e)
@@ -718,18 +734,13 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
       {
         TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires 'base_frame_id' parameter specifications"
                     , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
-
-        temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
-        diagnostic_msgs::KeyValue base_frame_id_spec;
-        RobotContainer rc;
         try
         {
-          rc = emr_interface.getContainer<RobotContainer>(requested_emr_item_name);
+          RobotContainer rc = emr_interface.getContainer<RobotContainer>(requested_emr_item_name);
+          diagnostic_msgs::KeyValue base_frame_id_spec;
           base_frame_id_spec.key = "base_frame_id";
-          base_frame_id_spec.value = temoto_core::common::getTemotoNamespace() + "/" + rc.base_frame_id; 
-          pipe_seg_spec.segment_index = i;
-          pipe_seg_spec.parameters.push_back(base_frame_id_spec);
-          load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+          base_frame_id_spec.value = rc.base_frame_id; 
+          addSpecifierToSegment(base_frame_id_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
           load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
         }
         catch(const std::exception& e)
@@ -745,14 +756,10 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
       else if (required_param == "map_topic")
       {
         MapContainer mc = emr_interface.getNearestParentOfType<MapContainer>(requested_emr_item_name);
-        TEMOTO_INFO_STREAM("Found map with name " << mc.name);
-        temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
         diagnostic_msgs::KeyValue map_topic_spec;
         map_topic_spec.key = "map_topic";
         map_topic_spec.value = mc.topic;
-        pipe_seg_spec.segment_index = i;
-        pipe_seg_spec.parameters.push_back(map_topic_spec);
-        load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+        addSpecifierToSegment(map_topic_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
         load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
       }
 
@@ -762,14 +769,10 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
       else if (required_param == "global_frame_id")
       {
         MapContainer mc = emr_interface.getNearestParentOfType<MapContainer>(requested_emr_item_name);
-        TEMOTO_INFO_STREAM("Found map with name " << mc.name);
-        temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
         diagnostic_msgs::KeyValue map_frame_id_spec;
         map_frame_id_spec.key = "global_frame_id";
         map_frame_id_spec.value = mc.name;
-        pipe_seg_spec.segment_index = i;
-        pipe_seg_spec.parameters.push_back(map_frame_id_spec);
-        load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+        addSpecifierToSegment(map_frame_id_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
         load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
       }
 
@@ -778,13 +781,10 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
        */
       else if (required_param == "tf_prefix")
       {
-        temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
         diagnostic_msgs::KeyValue tf_prefix_spec;
         tf_prefix_spec.key = "tf_prefix";
         tf_prefix_spec.value = temoto_core::common::getTemotoNamespace();
-        pipe_seg_spec.segment_index = i;
-        pipe_seg_spec.parameters.push_back(tf_prefix_spec);
-        load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+        addSpecifierToSegment(tf_prefix_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
         load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
       }
     }
@@ -805,7 +805,7 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
           "in-place specificationss", pipe_category.c_str());
         return false;
       }
-      TEMOTO_WARN_STREAM("5");
+      
       // Go through the parameters which need post 
       for (auto post_spec_ptr : post_spec_ptrs)
       {
@@ -821,7 +821,7 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
           }
         } 
       }
-      TEMOTO_WARN_STREAM("6");
+
       // Check if all post parameters have been specified
       bool parameters_specified = true;
       for (auto post_spec_ptr : post_spec_ptrs)
