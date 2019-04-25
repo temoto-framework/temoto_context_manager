@@ -14,7 +14,7 @@ void EmrRosInterface::publishContainerTf(const Container& container)
                                       container.pose.pose.orientation.y,
                                       container.pose.pose.orientation.z,
                                       container.pose.pose.orientation.w));
-  tf_broadcaster.sendTransform(tf::StampedTransform(transform, ros::Time::now(), modifyName(container.parent), modifyName(container.name)));
+  tf_broadcaster.sendTransform(tf::StampedTransform(transform, ros::Time::now(), temoto_core::common::toSnakeCase(container.parent), temoto_core::common::toSnakeCase(container.name)));
 }
 void EmrRosInterface::emrTfCallback(const ros::TimerEvent&)
 {
@@ -193,40 +193,4 @@ void EmrRosInterface::traverseEmr(const emr::Item& root)
   }
 }
 
-std::string EmrRosInterface::modifyName(const std::string& name_in)
-{
-  /*
-   * Remove whitespaces and change to lower case
-   */
-  std::string name = name_in;
-  boost::algorithm::to_lower(name);
-  boost::replace_all(name, " ", "_");
-
-  /*
-   * Remove all non alphanumeric elements except "_"
-   */
-  std::string name_alnum;
-  for(char& c : name)
-  {
-    if (std::isalnum(c) || std::string(1, c)=="_")
-    {
-      name_alnum += c;
-    }
-  }
-
-  /*
-   * Remove repetitive "_" characters
-   */
-  std::string before = name_alnum;
-  std::string after = name_alnum;
-  do
-  {
-    before = after;
-    boost::replace_all(after, "__", "_");
-  }
-  while (before != after);
-  name_alnum = after;
-
-  return name_alnum;
-}
 } // namespace emr_ros_interface

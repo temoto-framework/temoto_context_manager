@@ -9,6 +9,7 @@
 #include "temoto_context_manager/env_model_repository.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "temoto_core/common/ros_serialization.h"
+#include "temoto_core/common/tools.h"
 #include "ros/package.h"
 
 namespace emr_ros_interface
@@ -90,11 +91,11 @@ public:
   template<class Container>
   std::shared_ptr<RosPayload<Container>> getRosPayloadPtr(const std::string& name)
   {
-    if (!hasItem(modifyName(name))) ROS_ERROR_STREAM("NO ITEM " << modifyName(name) << " FOUND");
+    if (!hasItem(temoto_core::common::toSnakeCase(name))) ROS_ERROR_STREAM("NO ITEM " << temoto_core::common::toSnakeCase(name) << " FOUND");
     return std::dynamic_pointer_cast<RosPayload<Container>>
-      (env_model_repository_.getItemByName(modifyName(name))->getPayload());
+      (env_model_repository_.getItemByName(temoto_core::common::toSnakeCase(name))->getPayload());
   }
-  bool hasItem(const std::string& name) {return env_model_repository_.hasItem(modifyName(name));}
+  bool hasItem(const std::string& name) {return env_model_repository_.hasItem(temoto_core::common::toSnakeCase(name));}
 
   /**
    * @brief Update the EMR structure with new information
@@ -127,8 +128,8 @@ public:
   {
   RosPayload<Container> rospl = RosPayload<Container>(container);
   rospl.setType(container_type);
-  std::string name = modifyName(container.name);
-  std::string parent = modifyName(container.parent);
+  std::string name = temoto_core::common::toSnakeCase(container.name);
+  std::string parent = temoto_core::common::toSnakeCase(container.parent);
 
   // Check for empty name field
   // Move these to the context manager interface maybe? TBD
@@ -202,7 +203,7 @@ public:
   template <class Container>
 Container getNearestParentOfType(const std::string& name)
 {
-  std::shared_ptr<emr::Item> itemptr = env_model_repository_.getItemByName(modifyName(name));
+  std::shared_ptr<emr::Item> itemptr = env_model_repository_.getItemByName(temoto_core::common::toSnakeCase(name));
   if (itemptr->isRoot()) 
     ROS_ERROR_STREAM("ROOT ITEM HAS NO PARENTS.");
   std::string nearest = 
@@ -229,7 +230,7 @@ std::string getNearestParentHelper(const std::string& type, const std::shared_pt
 }
 const std::shared_ptr<emr::Item> getItemByName(std::string item_name)
 {
-  return env_model_repository_.getItemByName(modifyName(item_name));
+  return env_model_repository_.getItemByName(temoto_core::common::toSnakeCase(item_name));
 }
 private:
   emr::EnvironmentModelRepository& env_model_repository_;
@@ -238,8 +239,6 @@ private:
   ros::Timer tf_timer_;
   tf::TransformBroadcaster tf_broadcaster;
   mutable std::mutex emr_iface_mutex;
-
-  std::string modifyName(const std::string& name_in);
   
   void emrTfCallback(const ros::TimerEvent&);
   template <class Container>
