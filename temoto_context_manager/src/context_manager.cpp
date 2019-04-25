@@ -728,7 +728,7 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
           rc = emr_interface.getContainer<RobotContainer>(requested_emr_item_name);
           TEMOTO_WARN_STREAM("2");
           base_frame_id_spec.key = "base_frame_id";
-          base_frame_id_spec.value = rc.base_frame_id; 
+          base_frame_id_spec.value = temoto_core::common::getTemotoNamespace() + "/" + rc.base_frame_id; 
           pipe_seg_spec.segment_index = i;
           pipe_seg_spec.parameters.push_back(base_frame_id_spec);
           load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
@@ -748,6 +748,7 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
       else if (required_param == "map_topic")
       {
         MapContainer mc = emr_interface.getNearestParentOfType<MapContainer>(requested_emr_item_name);
+        TEMOTO_INFO_STREAM("Found map with name " << mc.name);
         temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
         diagnostic_msgs::KeyValue map_topic_spec;
         map_topic_spec.key = "map_topic";
