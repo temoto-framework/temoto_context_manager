@@ -698,7 +698,7 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
         {
           rc = emr_interface.getContainer<RobotContainer>(requested_emr_item_name);
           odom_frame_id_spec.key = "odom_frame_id";
-          odom_frame_id_spec.value = rc.odom_frame_id; 
+          odom_frame_id_spec.value = temoto_core::common::getTemotoNamespace() + "/" + rc.odom_frame_id; 
           pipe_seg_spec.segment_index = i;
           pipe_seg_spec.parameters.push_back(odom_frame_id_spec);
           load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
