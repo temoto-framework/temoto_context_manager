@@ -759,13 +759,13 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
       /*
        * Map Frame ID specification
        */
-      else if (required_param == "map_frame_id")
+      else if (required_param == "global_frame_id")
       {
         MapContainer mc = emr_interface.getNearestParentOfType<MapContainer>(requested_emr_item_name);
         TEMOTO_INFO_STREAM("Found map with name " << mc.name);
         temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
         diagnostic_msgs::KeyValue map_frame_id_spec;
-        map_frame_id_spec.key = "map_frame_id";
+        map_frame_id_spec.key = "global_frame_id";
         map_frame_id_spec.value = mc.name;
         pipe_seg_spec.segment_index = i;
         pipe_seg_spec.parameters.push_back(map_frame_id_spec);
