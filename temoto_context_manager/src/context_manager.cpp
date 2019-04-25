@@ -724,16 +724,13 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
         RobotContainer rc;
         try
         {
-          TEMOTO_WARN_STREAM("1");
           rc = emr_interface.getContainer<RobotContainer>(requested_emr_item_name);
-          TEMOTO_WARN_STREAM("2");
           base_frame_id_spec.key = "base_frame_id";
           base_frame_id_spec.value = rc.base_frame_id; 
           pipe_seg_spec.segment_index = i;
           pipe_seg_spec.parameters.push_back(base_frame_id_spec);
           load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
           load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
-          TEMOTO_WARN_STREAM("3");
         }
         catch(const std::exception& e)
         {
@@ -773,9 +770,23 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
         load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
         load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
       }
+
+      /*
+       * TF prefix specification
+       */
+      else if (required_param == "tf_prefix")
+      {
+        temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
+        diagnostic_msgs::KeyValue tf_prefix_spec;
+        tf_prefix_spec.key = "tf_prefix";
+        tf_prefix_spec.value = temoto_core::common::getTemotoNamespace();
+        pipe_seg_spec.segment_index = i;
+        pipe_seg_spec.parameters.push_back(tf_prefix_spec);
+        load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+        load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
+      }
     }
 
-    TEMOTO_WARN_STREAM("4");
     /*
      * Check if there were any post spec segments
      */ 
