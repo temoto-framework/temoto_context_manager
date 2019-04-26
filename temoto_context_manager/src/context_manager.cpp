@@ -716,7 +716,7 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
           diagnostic_msgs::KeyValue odom_frame_id_spec;
           RobotContainer rc = emr_interface.getContainer<RobotContainer>(requested_emr_item_name);
           odom_frame_id_spec.key = "odom_frame_id";
-          odom_frame_id_spec.value = rc.odom_frame_id; 
+          odom_frame_id_spec.value = temoto_core::common::getTemotoNamespace() + "/" + rc.odom_frame_id; 
           addSpecifierToSegment(odom_frame_id_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
           load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
         }
@@ -739,7 +739,7 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
           RobotContainer rc = emr_interface.getContainer<RobotContainer>(requested_emr_item_name);
           diagnostic_msgs::KeyValue base_frame_id_spec;
           base_frame_id_spec.key = "base_frame_id";
-          base_frame_id_spec.value = rc.base_frame_id; 
+          base_frame_id_spec.value = temoto_core::common::getTemotoNamespace() + "/" + rc.base_frame_id; 
           addSpecifierToSegment(base_frame_id_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
           load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
         }
