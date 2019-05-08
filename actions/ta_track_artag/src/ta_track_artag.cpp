@@ -78,7 +78,7 @@ uint32_t tag_id_;
 temoto_context_manager::ObjectContainer tracked_object_;
 tf::TransformListener tf_listener;
 std::string object_name;
-emr_ros_interface::EmrRosInterface* emr_interface_ptr;
+temoto_context_manager::EnvModelInterface* emr_interface_ptr;
     
 /*
  * Interface 0 body
@@ -94,8 +94,8 @@ void startInterface_0()
   std::string  what_1_data_0_in = boost::any_cast<std::string>(what_1_in.data_[0].value);
   temoto_core::TopicContainer topic_container = boost::any_cast<temoto_core::TopicContainer>(what_1_in.data_[1].value);
   emr_interface_ptr = 
-    boost::any_cast<emr_ros_interface::EmrRosInterface*>(what_1_in.data_[2].value);
-  tracked_object_ = emr_interface_ptr->getContainer<temoto_context_manager::ObjectContainer>(object_name);
+    boost::any_cast<temoto_context_manager::EnvModelInterface*>(what_1_in.data_[2].value);
+  tracked_object_ = emr_interface_ptr->getObject(object_name);
   tag_id_ = tracked_object_.tag_id;
   
   TEMOTO_INFO_STREAM("Starting to track object: " << object_name);
@@ -107,7 +107,7 @@ void startInterface_0()
   {
   temoto_context_manager::MapContainer map = 
     emr_interface_ptr->
-      getNearestParentOfType<temoto_context_manager::MapContainer>(object_name);
+      getNearestParentMap(object_name);
   TEMOTO_WARN_STREAM("Highest parent map: " << map.name);
   }
   catch(const std::exception& e)
@@ -146,7 +146,7 @@ void artagDataCb(ar_track_alvar_msgs::AlvarMarkers msg)
       }
       
       newPose.header = artag.pose.header;
-      emr_interface_ptr->updatePose<temoto_context_manager::ObjectContainer>(object_name, newPose);
+      emr_interface_ptr->updatePose(object_name, newPose);
 
       // Publish the tracked object
       // tracked_object_publisher_.publish(tracked_object_);

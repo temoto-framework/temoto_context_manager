@@ -84,8 +84,8 @@ void startInterface_0()
   /* EXTRACTION OF INPUT SUBJECTS */
   temoto_nlp::Subject what_0_in = temoto_nlp::getSubjectByType("what", input_subjects);
   std::string  what_0_word_in = what_0_in.words_[0];
-  emr_ros_interface::EmrRosInterface* eri = 
-    boost::any_cast<emr_ros_interface::EmrRosInterface*>(what_0_in.data_[0].value);
+  temoto_context_manager::EnvModelInterface* eri = 
+    boost::any_cast<temoto_context_manager::EnvModelInterface*>(what_0_in.data_[0].value);
 
   temoto_nlp::Subject what_1_in = temoto_nlp::getSubjectByType("what", input_subjects);
   std::string  what_1_word_in = what_1_in.words_[0];

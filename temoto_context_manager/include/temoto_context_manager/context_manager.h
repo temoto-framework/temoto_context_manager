@@ -9,6 +9,7 @@
 
 #include "temoto_context_manager/context_manager_services.h"
 #include "temoto_context_manager/context_manager_containers.h"
+#include "temoto_context_manager/env_model_interface.h"
 #include "temoto_context_manager/emr_ros_interface.h"
 #include "temoto_context_manager/emr_item_to_component_link.h"
 
@@ -84,6 +85,9 @@ private:
 
   std::vector<std::string> getItemDetectionMethods(const std::string& name);
 
+  template <class Container>
+  std::string parseContainerType();
+
   /**
    * @brief Invokes an action that tries to find connections between component manager components
    * and EMR items
@@ -131,7 +135,7 @@ private:
 
   emr::EnvironmentModelRepository env_model_repository_;
 
-  emr_ros_interface::EmrRosInterface emr_interface{env_model_repository_, temoto_core::common::getTemotoNamespace()};
+  std::shared_ptr<EnvModelInterface> emr_interface; 
 
   // Configuration syncer that manages external resource descriptions and synchronizes them
   // between all other (context) managers

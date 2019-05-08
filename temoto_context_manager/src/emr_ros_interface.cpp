@@ -3,6 +3,7 @@
 
 namespace emr_ros_interface
 {
+using namespace temoto_context_manager;
 template <class Container>
 void EmrRosInterface::publishContainerTf(const Container& container)
 {
@@ -15,6 +16,75 @@ void EmrRosInterface::publishContainerTf(const Container& container)
                                       container.pose.pose.orientation.z,
                                       container.pose.pose.orientation.w));
   tf_broadcaster.sendTransform(tf::StampedTransform(transform, ros::Time::now(), temoto_core::common::toSnakeCase(container.parent), temoto_core::common::toSnakeCase(container.name)));
+}
+
+ObjectContainer EmrRosInterface::getObject(const std::string& name)
+{
+  return getContainer<ObjectContainer>(name);
+}
+MapContainer EmrRosInterface::getMap(const std::string& name)
+{
+  return getContainer<MapContainer>(name);
+}
+ComponentContainer EmrRosInterface::getComponent(const std::string& name)
+{
+  return getContainer<ComponentContainer>(name);
+}
+RobotContainer EmrRosInterface::getRobot(const std::string& name)
+{
+  return getContainer<RobotContainer>(name);
+}
+ObjectContainer EmrRosInterface::getNearestParentObject(const std::string& name)
+{
+  return getNearestParentOfType<ObjectContainer>(name);
+}
+MapContainer EmrRosInterface::getNearestParentMap(const std::string& name)
+{
+  return getNearestParentOfType<MapContainer>(name);
+}
+ComponentContainer EmrRosInterface::getNearestParentComponent(const std::string& name)
+{
+  return getNearestParentOfType<ComponentContainer>(name);
+}
+RobotContainer EmrRosInterface::getNearestParentRobot(const std::string& name)
+{
+  return getNearestParentOfType<RobotContainer>(name);
+}
+
+void EmrRosInterface::updatePose(const std::string& name, const geometry_msgs::PoseStamped& newPose)
+{
+  std::string type = getTypeByName(name);
+  if (type == emr_ros_interface::emr_containers::OBJECT) 
+  {
+    updatePoseHelper<ObjectContainer>(name, newPose);
+  }
+  else if (type == emr_ros_interface::emr_containers::MAP)
+  {
+    updatePoseHelper<MapContainer>(name, newPose);
+  }
+  else if (type == emr_ros_interface::emr_containers::COMPONENT) 
+  {
+    updatePoseHelper<ComponentContainer>(name, newPose);
+  }
+  else if (type == emr_ros_interface::emr_containers::ROBOT) 
+  {
+    updatePoseHelper<RobotContainer>(name, newPose);
+  }
+}
+
+std::string EmrRosInterface::getTypeByName(const std::string& name)
+{
+  return env_model_repository_.getItemByName(name)->getPayload()->getType();
+}
+
+std::vector<ItemContainer> EmrRosInterface::updateEmr(const ItemContainer & item_to_add, bool update_time)
+{
+  std::vector<temoto_context_manager::ItemContainer> items {item_to_add};
+  return updateEmr(items, update_time);
+}
+bool EmrRosInterface::hasItem(const std::string& name) 
+{
+  return env_model_repository_.hasItem(temoto_core::common::toSnakeCase(name));
 }
 void EmrRosInterface::emrTfCallback(const ros::TimerEvent&)
 {
@@ -71,28 +141,28 @@ std::vector<temoto_context_manager::ItemContainer> EmrRosInterface::updateEmr(
       // Deserialize into an temoto_context_manager::ObjectContainer object and add to EMR
       temoto_context_manager::ObjectContainer oc = 
         temoto_core::deserializeROSmsg<temoto_context_manager::ObjectContainer>(item_container.serialized_container);
-      if (!addOrUpdateEmrItem(oc, emr_containers::OBJECT, item_container, update_time)) failed_items.push_back(item_container);
+      if (!addOrUpdateEmrItem(oc, emr_containers::OBJECT, item_container.maintainer, update_time)) failed_items.push_back(item_container);
     }
     else if (item_container.type == emr_containers::MAP) 
     {
       // Deserialize into an temoto_context_manager::MapContainer object and add to EMR
       temoto_context_manager::MapContainer mc = 
         temoto_core::deserializeROSmsg<temoto_context_manager::MapContainer>(item_container.serialized_container);
-      if (!addOrUpdateEmrItem(mc, emr_containers::MAP, item_container, update_time)) failed_items.push_back(item_container);
+      if (!addOrUpdateEmrItem(mc, emr_containers::MAP, item_container.maintainer, update_time)) failed_items.push_back(item_container);
     }
     else if (item_container.type == emr_containers::COMPONENT) 
     {
       // Deserialize into an temoto_context_manager::ComponentContainer object and add to EMR
       temoto_context_manager::ComponentContainer cc = 
         temoto_core::deserializeROSmsg<temoto_context_manager::ComponentContainer>(item_container.serialized_container);
-      if (!addOrUpdateEmrItem(cc, emr_containers::COMPONENT, item_container, update_time)) failed_items.push_back(item_container);
+      if (!addOrUpdateEmrItem(cc, emr_containers::COMPONENT, item_container.maintainer, update_time)) failed_items.push_back(item_container);
     }
     else if (item_container.type == emr_containers::ROBOT) 
     {
       // Deserialize into an temoto_context_manager::ComponentContainer object and add to EMR
       temoto_context_manager::RobotContainer cc = 
         temoto_core::deserializeROSmsg<temoto_context_manager::RobotContainer>(item_container.serialized_container);
-      if (!addOrUpdateEmrItem(cc, emr_containers::ROBOT, item_container, update_time)) failed_items.push_back(item_container);
+      if (!addOrUpdateEmrItem(cc, emr_containers::ROBOT, item_container.maintainer, update_time)) failed_items.push_back(item_container);
     }
     else
     {
@@ -172,24 +242,6 @@ void EmrRosInterface::EmrToVectorHelper(const emr::Item& currentItem, std::vecto
   for (uint32_t i = 0; i < children.size(); i++)
   {
     EmrToVectorHelper(*children[i], items);
-  }
-}
-
-/**
- * @brief Function to traverse and print out every item name in the tree
- * 
- * @param root 
- */
-void EmrRosInterface::traverseEmr(const emr::Item& root)
-{
-  // TEMOTO_DEBUG_STREAM(root.getPayload()->getName());
-  std::shared_ptr<RosPayload<temoto_context_manager::ObjectContainer>> msgptr = 
-    std::dynamic_pointer_cast<RosPayload<temoto_context_manager::ObjectContainer>>(root.getPayload());
-  // TEMOTO_DEBUG_STREAM("tag_id: " << msgptr->getPayload().tag_id);
-  std::vector<std::shared_ptr<emr::Item>> children = root.getChildren();
-  for (uint32_t i = 0; i < children.size(); i++)
-  {
-    traverseEmr(*children[i]);
   }
 }
 

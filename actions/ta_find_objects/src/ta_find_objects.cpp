@@ -85,7 +85,7 @@ uint32_t tag_id_;
 temoto_context_manager::ObjectContainer tracked_object_;
 tf::TransformListener tf_listener;
 std::string object_name;
-emr_ros_interface::EmrRosInterface* emr_interface_ptr;
+temoto_context_manager::EnvModelInterface* emr_interface_ptr;
     
 /*
  * Interface 0 body
@@ -99,7 +99,7 @@ void startInterface_0()
   std::string  what_1_data_0_in = boost::any_cast<std::string>(what_1_in.data_[0].value);
   temoto_core::TopicContainer topic_container = boost::any_cast<temoto_core::TopicContainer>(what_1_in.data_[1].value);
   emr_interface_ptr = 
-    boost::any_cast<emr_ros_interface::EmrRosInterface*>(what_1_in.data_[2].value);
+    boost::any_cast<temoto_context_manager::EnvModelInterface*>(what_1_in.data_[2].value);
   tag_id_ = tracked_object_.tag_id;
   
   TEMOTO_INFO_STREAM("Set up object finder for robot: " << temoto_core::common::getTemotoNamespace());
@@ -123,7 +123,7 @@ void artagDataCb(ar_track_alvar_msgs::AlvarMarkers msg)
     {
       object_name = artag_item_map_[artag.id];
       tracked_object_ = emr_interface_ptr->
-            getContainer<temoto_context_manager::ObjectContainer>(object_name);
+            getObject(object_name);
       TEMOTO_INFO_STREAM("Updating pose of item " << object_name << " with ID " << artag.id);
 
       // Update the pose of the object
@@ -140,7 +140,7 @@ void artagDataCb(ar_track_alvar_msgs::AlvarMarkers msg)
       }
       
       newPose.header = artag.pose.header;
-      emr_interface_ptr->updatePose<temoto_context_manager::ObjectContainer>(object_name, newPose);
+      emr_interface_ptr->updatePose(object_name, newPose);
 
       // Publish the tracked object
       // tracked_object_publisher_.publish(tracked_object_);
@@ -157,7 +157,7 @@ void artagDataCb(ar_track_alvar_msgs::AlvarMarkers msg)
       new_obj.name = object_name;
       
       temoto_context_manager::MapContainer parent_map = 
-            emr_interface_ptr->getNearestParentOfType<temoto_context_manager::MapContainer>(
+            emr_interface_ptr->getNearestParentMap(
                 temoto_core::common::getTemotoNamespace());
       new_obj.parent = parent_map.name;
 
@@ -175,9 +175,10 @@ void artagDataCb(ar_track_alvar_msgs::AlvarMarkers msg)
       }
       temoto_context_manager::ItemContainer ic;
       ic.maintainer = temoto_core::common::getTemotoNamespace();
+      ic.serialized_container = temoto_core::serializeROSmsg(tracked_object_);
       newPose.header = artag.pose.header;
       tracked_object_.pose = newPose;
-      emr_interface_ptr->addOrUpdateEmrItem(tracked_object_, "OBJECT", ic, false);
+      emr_interface_ptr->updateEmr(ic);
     }
   }
 }
