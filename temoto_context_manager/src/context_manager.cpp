@@ -434,7 +434,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     sub_1.addData("pointer", boost::any_cast<temoto_core::TopicContainer>(pipe_topics));
 
     // Pass a pointer to EMR interface, which will be used to access EMR without ROS messaging overhead
-    sub_1.addData("pointer", boost::any_cast<EnvModelInterface*>(&emr_interface));
+    sub_1.addData("pointer", boost::any_cast<std::shared_ptr<EnvModelInterface>>(emr_interface));
 
     subjects.push_back(sub_0);
     subjects.push_back(sub_1);
@@ -489,7 +489,7 @@ void ContextManager::startComponentToEmrLinker()
     // Subject that will contain the name of the tracked object.
     // Necessary when the tracker has to be stopped
     temoto_nlp::Subject sub_0("what", "emr");
-    sub_0.addData("pointer", boost::any_cast<EnvModelInterface*>(&emr_interface));
+    sub_0.addData("pointer", boost::any_cast<std::shared_ptr<EnvModelInterface>>(emr_interface));
 
     // Subject that will contain the data necessary for the specific tracker
     temoto_nlp::Subject sub_1("what", "emr-to-component registry");

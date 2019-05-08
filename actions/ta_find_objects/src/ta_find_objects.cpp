@@ -85,7 +85,7 @@ uint32_t tag_id_;
 temoto_context_manager::ObjectContainer tracked_object_;
 tf::TransformListener tf_listener;
 std::string object_name;
-temoto_context_manager::EnvModelInterface* emr_interface_ptr;
+std::shared_ptr<temoto_context_manager::EnvModelInterface> emr_interface_ptr;
     
 /*
  * Interface 0 body
@@ -99,7 +99,7 @@ void startInterface_0()
   std::string  what_1_data_0_in = boost::any_cast<std::string>(what_1_in.data_[0].value);
   temoto_core::TopicContainer topic_container = boost::any_cast<temoto_core::TopicContainer>(what_1_in.data_[1].value);
   emr_interface_ptr = 
-    boost::any_cast<temoto_context_manager::EnvModelInterface*>(what_1_in.data_[2].value);
+    boost::any_cast<std::shared_ptr<temoto_context_manager::EnvModelInterface>>(what_1_in.data_[2].value);
   tag_id_ = tracked_object_.tag_id;
   
   TEMOTO_INFO_STREAM("Set up object finder for robot: " << temoto_core::common::getTemotoNamespace());
