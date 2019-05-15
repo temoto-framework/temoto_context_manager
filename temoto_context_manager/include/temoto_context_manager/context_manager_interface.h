@@ -143,7 +143,7 @@ public:
     return srv_msg.response.responded_int;
   }
 
-  std::string trackObject(std::string object_name)
+  std::string trackObject(std::string object_name, bool use_only_local_resources = false)
   {
     // Validate the interface
     try
@@ -158,6 +158,7 @@ public:
     // Start filling out the TrackObject message
     TrackObject track_object_msg;
     track_object_msg.request.object_name = object_name;
+    track_object_msg.request.use_only_local_resources = use_only_local_resources;
 
     try
     {

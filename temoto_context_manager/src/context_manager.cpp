@@ -297,6 +297,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     temoto_component_manager::LoadPipe load_pipe_msg;
     // addDetectionMethods(detection_methods);
     std::string selected_pipe;
+    load_pipe_msg.request.use_only_local_segments = req.use_only_local_resources;
 
     /*
      * Loop over different pipe categories and try to load one. The loop is iterated either until
