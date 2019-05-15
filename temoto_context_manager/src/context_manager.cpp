@@ -17,6 +17,7 @@ ContextManager::ContextManager()
   , emr_syncer_(srv_name::MANAGER, srv_name::SYNC_OBJECTS_TOPIC, &ContextManager::emrSyncCb, this)
   , action_engine_(this, false, ros::package::getPath(ROS_PACKAGE_NAME) + "/config/action_dst.yaml")
 {
+  emr_interface = std::make_shared<emr_ros_interface::EmrRosInterface>(env_model_repository_, temoto_core::common::getTemotoNamespace());
   /*
    * Start the servers
    */
@@ -94,7 +95,7 @@ Items ContextManager::updateEmr(const Items& items_to_add, bool from_other_manag
 {
   
   // Keep track of failed add/update attempts
-  std::vector<ItemContainer> failed_items = emr_interface.updateEmr(items_to_add, update_time);
+  std::vector<ItemContainer> failed_items = emr_interface->updateEmr(items_to_add, update_time);
 
   // If this object was added by its own namespace, then advertise this config to other managers
   if (!from_other_manager)
@@ -112,27 +113,75 @@ Items ContextManager::updateEmr(const Items& items_to_add, bool from_other_manag
 void ContextManager::advertiseEmr()
 {
   // Publish all items 
-  Items items_payload = emr_interface.EmrToVector();
+  Items items_payload = emr_interface->EmrToVector();
   // If there is something to send, advertise.
   if (items_payload.size()) 
   {
     emr_syncer_.advertise(items_payload);
   }
 }
-
-template <class Container> 
-bool ContextManager::getEmrItemHelper(const std::string& name, std::string type, ItemContainer& container)
+template <class Container>
+std::string ContextManager::parseContainerType()
 {
-  ItemPtr nodeptr = emr_interface.getItemByName(name);
-  std::string real_type = nodeptr->getPayload()->getType();
-  // Check if requested type matches real type
-  if (real_type == emr_interface.parseContainerType<Container>()) 
+  if (std::is_same<Container, temoto_context_manager::ObjectContainer>::value) 
   {
-    Container rospl = emr_interface.getContainer<Container>(name);
-    container.serialized_container = temoto_core::serializeROSmsg(rospl);
-    container.type = type;
-    TEMOTO_WARN_STREAM("Found item " << name);
-    return true;
+    return emr_ros_interface::emr_containers::OBJECT;
+  }
+  else if (std::is_same<Container, temoto_context_manager::MapContainer>::value) 
+  {
+    return emr_ros_interface::emr_containers::MAP;
+  }
+  else if (std::is_same<Container, temoto_context_manager::ComponentContainer>::value) 
+  {
+    return emr_ros_interface::emr_containers::COMPONENT;
+  }
+  else if (std::is_same<Container, temoto_context_manager::RobotContainer>::value) 
+  {
+    return emr_ros_interface::emr_containers::ROBOT;
+  }
+  ROS_ERROR_STREAM("UNRECOGNIZED TYPE");
+  return "FAULTY_TYPE";
+}
+
+bool ContextManager::getEmrItem(const std::string& name, std::string type, ItemContainer& container)
+{
+  std::string real_type = emr_interface->getTypeByName(name);
+  // Check if requested type matches real type
+  if (real_type == type) 
+  {
+    if (type == emr_ros_interface::emr_containers::OBJECT) 
+    {
+      auto rospl = emr_interface->getObject(name);
+      container.serialized_container = temoto_core::serializeROSmsg(rospl);
+      container.type = type;
+      return true;
+    }
+    else if (type == emr_ros_interface::emr_containers::MAP) 
+    {
+      auto rospl = emr_interface->getMap(name);
+      container.serialized_container = temoto_core::serializeROSmsg(rospl);
+      container.type = type;
+      return true;
+    }
+    else if (type == emr_ros_interface::emr_containers::COMPONENT) 
+    {
+      auto rospl = emr_interface->getComponent(name);
+      container.serialized_container = temoto_core::serializeROSmsg(rospl);
+      container.type = type;
+      return true;
+    }
+    else if (type == emr_ros_interface::emr_containers::ROBOT) 
+    {
+      auto rospl = emr_interface->getRobot(name);
+      container.serialized_container = temoto_core::serializeROSmsg(rospl);
+      container.type = type;
+      return true;
+    }
+    else
+    {
+      TEMOTO_ERROR_STREAM("Unrecognized container type specified: " << type << std::endl);
+      return false;
+    }
   }
   else
   {
@@ -142,58 +191,32 @@ bool ContextManager::getEmrItemHelper(const std::string& name, std::string type,
     return false;
   }
 }
-
-bool ContextManager::getEmrItem(const std::string& name, std::string type, ItemContainer& container)
-{
-  if (type == emr_ros_interface::emr_containers::OBJECT) 
-  {
-    return getEmrItemHelper<ObjectContainer>(name, type, container);
-  }
-  else if (type == emr_ros_interface::emr_containers::MAP) 
-  {
-    return getEmrItemHelper<MapContainer>(name, type, container);
-  }
-  else if (type == emr_ros_interface::emr_containers::COMPONENT) 
-  {
-    return getEmrItemHelper<ComponentContainer>(name, type, container);
-  }
-  else if (type == emr_ros_interface::emr_containers::ROBOT) 
-  {
-    return getEmrItemHelper<RobotContainer>(name, type, container);
-  }
-  else
-  {
-    TEMOTO_ERROR_STREAM("Unrecognized container type specified: " << type << std::endl);
-    return false;
-  }
-}
 bool ContextManager::getEmrVectorCb(GetEMRVector::Request& req, GetEMRVector::Response& res)
 {
-  res.items = emr_interface.EmrToVector();
+  res.items = emr_interface->EmrToVector();
   return true;
 }
 std::vector<std::string> ContextManager::getItemDetectionMethods(const std::string& name)
 {
-  if (!emr_interface.hasItem(name))
+  if (!emr_interface->hasItem(name))
   {
     throw CREATE_ERROR(temoto_core::error::Code::UNKNOWN_OBJECT, "Item " + name + " not found!");
   }
-  ItemPtr itemptr = emr_interface.getItemByName(name);
   TEMOTO_INFO_STREAM("The requested item is known");
-  std::string type = itemptr->getPayload()->getType();
+  std::string type = emr_interface->getTypeByName(name);
   if (type == emr_ros_interface::emr_containers::OBJECT) 
   {
-    ObjectContainer obj = emr_interface.getContainer<ObjectContainer>(name);
+    ObjectContainer obj = emr_interface->getObject(name);
     return obj.detection_methods;
   }
   else if (type == emr_ros_interface::emr_containers::MAP) 
   {
-    MapContainer map = emr_interface.getContainer<MapContainer>(name);
+    MapContainer map = emr_interface->getMap(name);
     return map.detection_methods;
   }
   else if (type == emr_ros_interface::emr_containers::ROBOT) 
   {
-    RobotContainer robot = emr_interface.getContainer<RobotContainer>(name);
+    RobotContainer robot = emr_interface->getRobot(name);
     return robot.detection_methods;
   }
   else if (type == emr_ros_interface::emr_containers::COMPONENT)
@@ -412,7 +435,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     sub_1.addData("pointer", boost::any_cast<temoto_core::TopicContainer>(pipe_topics));
 
     // Pass a pointer to EMR interface, which will be used to access EMR without ROS messaging overhead
-    sub_1.addData("pointer", boost::any_cast<emr_ros_interface::EmrRosInterface*>(&emr_interface));
+    sub_1.addData("pointer", boost::any_cast<std::shared_ptr<EnvModelInterface>>(emr_interface));
 
     subjects.push_back(sub_0);
     subjects.push_back(sub_1);
@@ -467,7 +490,7 @@ void ContextManager::startComponentToEmrLinker()
     // Subject that will contain the name of the tracked object.
     // Necessary when the tracker has to be stopped
     temoto_nlp::Subject sub_0("what", "emr");
-    sub_0.addData("pointer", boost::any_cast<emr_ros_interface::EmrRosInterface*>(&emr_interface));
+    sub_0.addData("pointer", boost::any_cast<std::shared_ptr<EnvModelInterface>>(emr_interface));
 
     // Subject that will contain the data necessary for the specific tracker
     temoto_nlp::Subject sub_1("what", "emr-to-component registry");
@@ -715,9 +738,9 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
         try
         {
           diagnostic_msgs::KeyValue odom_frame_id_spec;
-          RobotContainer rc = emr_interface.getContainer<RobotContainer>(requested_emr_item_name);
+          RobotContainer rc = emr_interface->getRobot(requested_emr_item_name);
           odom_frame_id_spec.key = "odom_frame_id";
-          odom_frame_id_spec.value = rc.odom_frame_id; 
+          odom_frame_id_spec.value = temoto_core::common::getTemotoNamespace() + "/" + rc.odom_frame_id; 
           addSpecifierToSegment(odom_frame_id_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
           load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
         }
@@ -737,10 +760,10 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
                     , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
         try
         {
-          RobotContainer rc = emr_interface.getContainer<RobotContainer>(requested_emr_item_name);
+          RobotContainer rc = emr_interface->getRobot(requested_emr_item_name);
           diagnostic_msgs::KeyValue base_frame_id_spec;
           base_frame_id_spec.key = "base_frame_id";
-          base_frame_id_spec.value = rc.base_frame_id; 
+          base_frame_id_spec.value = temoto_core::common::getTemotoNamespace() + "/" + rc.base_frame_id; 
           addSpecifierToSegment(base_frame_id_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
           load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
         }
@@ -756,7 +779,7 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
        */
       else if (required_param == "map_topic")
       {
-        MapContainer mc = emr_interface.getNearestParentOfType<MapContainer>(requested_emr_item_name);
+        MapContainer mc = emr_interface->getNearestParentMap(requested_emr_item_name);
         diagnostic_msgs::KeyValue map_topic_spec;
         map_topic_spec.key = "map_topic";
         map_topic_spec.value = mc.topic;
@@ -769,7 +792,7 @@ bool ContextManager::getParameterSpecifications( const temoto_component_manager:
        */
       else if (required_param == "global_frame_id")
       {
-        MapContainer mc = emr_interface.getNearestParentOfType<MapContainer>(requested_emr_item_name);
+        MapContainer mc = emr_interface->getNearestParentMap(requested_emr_item_name);
         diagnostic_msgs::KeyValue map_frame_id_spec;
         map_frame_id_spec.key = "global_frame_id";
         map_frame_id_spec.value = mc.name;

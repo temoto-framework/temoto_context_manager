@@ -7,6 +7,7 @@
 
 #include "temoto_context_manager/context_manager_containers.h"
 #include "temoto_context_manager/env_model_repository.h"
+#include "temoto_context_manager/env_model_interface.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "temoto_core/common/ros_serialization.h"
 #include "temoto_core/common/tools.h"
@@ -14,6 +15,7 @@
 
 namespace emr_ros_interface
 {
+using namespace temoto_context_manager;
 
 template <class RosMsg>
 class RosPayload : public emr::PayloadEntry
@@ -65,15 +67,67 @@ public:
 
 };
 
-class EmrRosInterface
+class EmrRosInterface : public temoto_context_manager::EnvModelInterface
 {
 public:
-  EmrRosInterface(emr::EnvironmentModelRepository& emr, std::string identifier) : env_model_repository_(emr), identifier_(identifier) 
-  {
-    // TODO: Move this to context manager
-    tf_timer_ = nh_.createTimer(ros::Duration(0.1), &EmrRosInterface::emrTfCallback, this);
-  }
 
+  // Inherited functions
+
+  std::string getTypeByName(const std::string& name);
+
+  // C++ does not support templated virtual classes :(
+  temoto_context_manager::ObjectContainer getObject(const std::string& name);
+  temoto_context_manager::MapContainer getMap(const std::string& name);
+  temoto_context_manager::ComponentContainer getComponent(const std::string& name);
+  temoto_context_manager::RobotContainer getRobot(const std::string& name);
+
+  temoto_context_manager::ObjectContainer getNearestParentObject(const std::string& name);
+  temoto_context_manager::MapContainer getNearestParentMap(const std::string& name);
+  temoto_context_manager::ComponentContainer getNearestParentComponent(const std::string& name);
+  temoto_context_manager::RobotContainer getNearestParentRobot(const std::string& name);
+
+  bool hasItem(const std::string& name);
+  /**
+   * @brief Update the EMR structure with new information
+   * 
+   * @param items_to_add 
+   * @param from_other_manager 
+   * @return std::vector<temoto_context_manager::ItemContainer> that could not be added
+   */
+  std::vector<ItemContainer> updateEmr(const std::vector<ItemContainer> & items_to_add, bool update_time=false);
+  std::vector<ItemContainer> updateEmr(const ItemContainer & item_to_add, bool update_time=false);
+  
+  /**
+   * @brief Save the EMR state as a temoto_context_manager::ItemContainer vector
+   * 
+   * @param emr 
+   * @return std::vector<temoto_context_manager::ItemContainer> 
+   */
+  std::vector<ItemContainer> EmrToVector();
+
+  EmrRosInterface(emr::EnvironmentModelRepository& emr, std::string identifier) : env_model_repository_(emr), identifier_(identifier) 
+{
+  // TODO: Move this to context manager
+  tf_timer_ = nh_.createTimer(ros::Duration(0.1), &EmrRosInterface::emrTfCallback, this);
+}
+
+  /**
+   * @brief Update pose of EMR item
+   * 
+   * @tparam Container 
+   * @param name 
+   * @param newPose 
+   */
+  void updatePose(const std::string& name, const geometry_msgs::PoseStamped& newPose);
+  template <class Container> 
+  void updatePoseHelper(const std::string& name, const geometry_msgs::PoseStamped& newPose)
+  {
+    std::shared_ptr<RosPayload<Container>> plptr = getRosPayloadPtr<Container>(name); 
+    std::lock_guard<std::mutex> lock(emr_iface_mutex);
+    auto temp = plptr->getPayload();
+    temp.pose = newPose;
+    plptr->setPayload(temp);
+  }
   template<class Container>
   Container getContainer(const std::string& name)
   {
@@ -91,28 +145,12 @@ public:
   template<class Container>
   std::shared_ptr<RosPayload<Container>> getRosPayloadPtr(const std::string& name)
   {
-    if (!hasItem(temoto_core::common::toSnakeCase(name))) ROS_ERROR_STREAM("NO ITEM " << temoto_core::common::toSnakeCase(name) << " FOUND");
+    if (!hasItem(temoto_core::common::toSnakeCase(name))) 
+    ROS_ERROR_STREAM("NO ITEM " << temoto_core::common::toSnakeCase(name) << " FOUND");
     return std::dynamic_pointer_cast<RosPayload<Container>>
       (env_model_repository_.getItemByName(temoto_core::common::toSnakeCase(name))->getPayload());
   }
-  bool hasItem(const std::string& name) {return env_model_repository_.hasItem(temoto_core::common::toSnakeCase(name));}
 
-  /**
-   * @brief Update the EMR structure with new information
-   * 
-   * @param items_to_add 
-   * @param from_other_manager 
-   * @return std::vector<temoto_context_manager::ItemContainer> that could not be added
-   */
-  std::vector<temoto_context_manager::ItemContainer> updateEmr(const std::vector<temoto_context_manager::ItemContainer> & items_to_add, bool update_time=false);
-
-  /**
-   * @brief Debug function to traverse through EMR tree 
-   * 
-   * @param root 
-   */
-  void traverseEmr(const emr::Item& root);
-  
   /**
    * @brief Add or update a single item of the EMR
    * 
@@ -123,7 +161,7 @@ public:
   template <class Container>
   bool addOrUpdateEmrItem(const Container & container, 
                           const std::string& container_type, 
-                          const temoto_context_manager::ItemContainer& ic, 
+                          const std::string& maintainer, 
                           const bool update_time)
   {
   RosPayload<Container> rospl = RosPayload<Container>(container);
@@ -150,7 +188,7 @@ public:
   {
     // Add the new item
     // TODO: resolve tf_prefixes, if type == component or robot, prepend maintainer
-    rospl.setMaintainer(ic.maintainer);
+    rospl.setMaintainer(maintainer);
     std::shared_ptr<RosPayload<Container>> plptr = std::make_shared<RosPayload<Container>>(rospl);
     env_model_repository_.addItem(name, parent, plptr);
   }
@@ -169,14 +207,6 @@ public:
 }
 
   /**
-   * @brief Save the EMR state as a temoto_context_manager::ItemContainer vector
-   * 
-   * @param emr 
-   * @return std::vector<temoto_context_manager::ItemContainer> 
-   */
-  std::vector<temoto_context_manager::ItemContainer> EmrToVector();
-
-  /**
    * @brief Recursive helper function to save EMR state
    * 
    * @param currentItem 
@@ -191,16 +221,8 @@ public:
    * @param name 
    * @param newPose 
    */
-  template <class Container>
-  void updatePose(const std::string& name, const geometry_msgs::PoseStamped& newPose)
-  {
-    std::shared_ptr<RosPayload<Container>> plptr = getRosPayloadPtr<Container>(name); 
-    std::lock_guard<std::mutex> lock(emr_iface_mutex);
-    Container temp = plptr->getPayload();
-    temp.pose = newPose;
-    plptr->setPayload(temp);
-  }
-  template <class Container>
+  
+template <class Container>
 Container getNearestParentOfType(const std::string& name)
 {
   std::shared_ptr<emr::Item> itemptr = env_model_repository_.getItemByName(temoto_core::common::toSnakeCase(name));
@@ -228,11 +250,19 @@ std::string getNearestParentHelper(const std::string& type, const std::shared_pt
     return getNearestParentHelper(type, itemptr->getParent().lock());
   }
 }
-const std::shared_ptr<emr::Item> getItemByName(std::string item_name)
-{
-  return env_model_repository_.getItemByName(temoto_core::common::toSnakeCase(item_name));
-}
-template <class Container>
+
+private:
+  emr::EnvironmentModelRepository& env_model_repository_;
+  std::string identifier_;
+  ros::NodeHandle nh_;
+  ros::Timer tf_timer_;
+  tf::TransformBroadcaster tf_broadcaster;
+  mutable std::mutex emr_iface_mutex;
+  
+  void emrTfCallback(const ros::TimerEvent&);
+  template <class Container>
+  void publishContainerTf(const Container& container);
+  template <class Container>
 std::string parseContainerType()
 {
   if (std::is_same<Container, temoto_context_manager::ObjectContainer>::value) 
@@ -254,17 +284,6 @@ std::string parseContainerType()
   ROS_ERROR_STREAM("UNRECOGNIZED TYPE");
   return "FAULTY_TYPE";
 }
-private:
-  emr::EnvironmentModelRepository& env_model_repository_;
-  std::string identifier_;
-  ros::NodeHandle nh_;
-  ros::Timer tf_timer_;
-  tf::TransformBroadcaster tf_broadcaster;
-  mutable std::mutex emr_iface_mutex;
-  
-  void emrTfCallback(const ros::TimerEvent&);
-  template <class Container>
-  void publishContainerTf(const Container& container);
 
   /**
    * @brief Moves up the tree, returning the closest container of type Container
