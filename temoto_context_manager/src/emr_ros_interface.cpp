@@ -74,7 +74,8 @@ void EmrRosInterface::updatePose(const std::string& name, const geometry_msgs::P
 
 std::string EmrRosInterface::getTypeByName(const std::string& name)
 {
-  return env_model_repository_.getItemByName(name)->getPayload()->getType();
+  return env_model_repository_.getItemByName(
+      temoto_core::common::toSnakeCase(name))->getPayload()->getType();
 }
 
 std::vector<ItemContainer> EmrRosInterface::updateEmr(const ItemContainer & item_to_add, bool update_time)
