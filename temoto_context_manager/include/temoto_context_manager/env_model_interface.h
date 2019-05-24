@@ -14,20 +14,86 @@ namespace temoto_context_manager
 class EnvModelInterface
 {
 public:
+/**
+ * @brief Get the type of EM item by name
+ * 
+ * @param name 
+ * @return std::string 
+ */
   virtual std::string getTypeByName(const std::string& name) = 0;
 
   // C++ does not support templated virtual classes :(
+  /**
+   * @brief Get an object type item
+   * 
+   * @param name 
+   * @return ObjectContainer 
+   */
   virtual ObjectContainer getObject(const std::string& name) = 0;
+  /**
+   * @brief Get a map type item
+   * 
+   * @param name 
+   * @return MapContainer 
+   */
   virtual MapContainer getMap(const std::string& name) = 0;
+  /**
+   * @brief Get a Component type item
+   * 
+   * @param name 
+   * @return ComponentContainer 
+   */
   virtual ComponentContainer getComponent(const std::string& name) = 0;
+  /**
+   * @brief Get a Robot type item
+   * 
+   * @param name 
+   * @return RobotContainer 
+   */
   virtual RobotContainer getRobot(const std::string& name) = 0;
-
-  virtual ObjectContainer getNearestParentObject(const std::string& name) = 0;
+  /**
+   * @brief Get first parent item of type MAP
+   * 
+   * @param name 
+   * @return MapContainer 
+   */
   virtual MapContainer getNearestParentMap(const std::string& name) = 0;
+  /**
+   * @brief Get first parent item of type OBJECT
+   * 
+   * @param name 
+   * @return ObjectContainer 
+   */
+  virtual ObjectContainer getNearestParentObject(const std::string& name) = 0;
+  /**
+   * @brief Get first parent item of type COMPONENT
+   * 
+   * @param name 
+   * @return ComponentContainer 
+   */
   virtual ComponentContainer getNearestParentComponent(const std::string& name) = 0;
+  /**
+   * @brief Get first parent item of type ROBOT
+   * 
+   * @param name 
+   * @return RobotContainer 
+   */
   virtual RobotContainer getNearestParentRobot(const std::string& name) = 0;
 
+  /**
+   * @brief Check if the EM has an item with this name
+   * 
+   * @param name 
+   * @return true 
+   * @return false 
+   */
   virtual bool hasItem(const std::string& name) = 0;
+  /**
+   * @brief Remove an item
+   * 
+   * @param name 
+   */
+  virtual void removeItem(const std::string& name) = 0;
   /**
    * @brief Update the EMR structure with new information
    * 
@@ -39,15 +105,14 @@ public:
   virtual std::vector<ItemContainer> updateEmr(const ItemContainer & item_to_add, bool update_time=false) = 0;
   
   /**
-   * @brief Save the EMR state as a temoto_context_manager::ItemContainer vector
+   * @brief Save the EM state as a temoto_context_manager::ItemContainer vector
    * 
-   * @param emr 
    * @return std::vector<temoto_context_manager::ItemContainer> 
    */
   virtual std::vector<ItemContainer> EmrToVector() = 0;
 
   /**
-   * @brief Update pose of EMR item
+   * @brief Update pose of EM item
    * 
    * @tparam Container 
    * @param name 

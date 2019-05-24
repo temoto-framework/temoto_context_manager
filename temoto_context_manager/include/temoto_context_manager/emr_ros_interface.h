@@ -85,6 +85,7 @@ public:
   temoto_context_manager::MapContainer getNearestParentMap(const std::string& name);
   temoto_context_manager::ComponentContainer getNearestParentComponent(const std::string& name);
   temoto_context_manager::RobotContainer getNearestParentRobot(const std::string& name);
+  void removeItem(const std::string& name);
 
   bool hasItem(const std::string& name);
   /**

@@ -244,6 +244,10 @@ void EmrRosInterface::EmrToVectorHelper(const emr::Item& currentItem, std::vecto
   {
     EmrToVectorHelper(*children[i], items);
   }
-}
 
+}
+void EmrRosInterface::removeItem(const std::string& name)
+{
+  env_model_repository_.removeItem(name);
+}
 } // namespace emr_ros_interface

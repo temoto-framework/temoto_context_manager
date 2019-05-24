@@ -10,4 +10,7 @@ string parent
 string odom_frame_id
 string base_frame_id
 
+# Describes the shape primitive (e.g., box, cylinder, cone, sphere)
+visualization_msgs/Marker marker
+
 geometry_msgs/PoseStamped pose
