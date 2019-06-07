@@ -138,12 +138,13 @@ void amclDataCb(geometry_msgs::PoseWithCovarianceStamped msg)
   }
   
   newPose.header = msg.header;
-  tracked_robot_.pose = newPose;
-  temoto_context_manager::ItemContainer item;
-  item.type = emr_ros_interface::emr_containers::ROBOT;
-  item.maintainer = temoto_core::common::getTemotoNamespace();
-  item.serialized_container = temoto_core::serializeROSmsg(tracked_robot_);
-  emr_interface_ptr->updateEmr(item, false);
+  emr_interface_ptr->updatePose(tracked_robot_.name, newPose);
+  // tracked_robot_.pose = newPose;
+  // temoto_context_manager::ItemContainer item;
+  // item.type = emr_ros_interface::emr_containers::ROBOT;
+  // item.maintainer = temoto_core::common::getTemotoNamespace();
+  // item.serialized_container = temoto_core::serializeROSmsg(tracked_robot_);
+  // emr_interface_ptr->updateEmr(item, false);
 
   // Publish the tracked object
   // tracked_object_publisher_.publish(tracked_robot_);
