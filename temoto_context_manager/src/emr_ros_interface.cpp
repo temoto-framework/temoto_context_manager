@@ -98,28 +98,24 @@ void EmrRosInterface::emrTfCallback(const ros::TimerEvent&)
     std::string type = item_entry.second->getPayload()->getType();
     if (type == emr_containers::OBJECT)
     {
-      // If maintainer is another instance, don't publish
       if (getRosPayloadPtr<temoto_context_manager::ObjectContainer>(item_entry.first)->getMaintainer() != identifier_) continue;
       temoto_context_manager::ObjectContainer oc = getContainerUnsafe<temoto_context_manager::ObjectContainer>(item_entry.first);
       publishContainerTf(oc);
     }
     else if (type == emr_containers::MAP)
     {
-      // If maintainer is another instance, don't publish
       if (getRosPayloadPtr<temoto_context_manager::MapContainer>(item_entry.first)->getMaintainer() != identifier_) continue;
       temoto_context_manager::MapContainer mc = getContainerUnsafe<temoto_context_manager::MapContainer>(item_entry.first);
       publishContainerTf(mc);
     }
     else if (type == emr_containers::COMPONENT)
     {
-      // If maintainer is another instance, don't publish
       if (getRosPayloadPtr<temoto_context_manager::ComponentContainer>(item_entry.first)->getMaintainer() != identifier_) continue;
       temoto_context_manager::ComponentContainer mc = getContainerUnsafe<temoto_context_manager::ComponentContainer>(item_entry.first);
       publishContainerTf(mc);
     }
     else if (type == emr_containers::ROBOT)
     {
-      // If maintainer is another instance, don't publish
       if (getRosPayloadPtr<temoto_context_manager::RobotContainer>(item_entry.first)->getMaintainer() != identifier_) continue;
       temoto_context_manager::RobotContainer mc = getContainerUnsafe<temoto_context_manager::RobotContainer>(item_entry.first);
       publishContainerTf(mc);
@@ -167,7 +163,7 @@ std::vector<temoto_context_manager::ItemContainer> EmrRosInterface::updateEmr(
     }
     else
     {
-      // TEMOTO_ERROR_STREAM("Wrong type " << item_container.type.c_str() << "specified for EMR item");
+      ROS_ERROR_STREAM("Wrong type " << item_container.type.c_str() << "specified for EMR item");
       failed_items.push_back(item_container);
     }
   }
@@ -235,7 +231,7 @@ void EmrRosInterface::EmrToVectorHelper(const emr::Item& currentItem, std::vecto
   }
   else
   {
-    // TEMOTO_ERROR_STREAM("Wrong type of container @ EmrToVectorHelper: " << ic.type);
+    ROS_ERROR_STREAM("Wrong type of container @ EmrToVectorHelper: " << ic.type);
     return;
   }
 
