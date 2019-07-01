@@ -41,6 +41,8 @@ ContextManager::ContextManager()
   // Request remote EMR configurations
   emr_syncer_.requestRemoteConfigs();
 
+  emr_sync_timer = nh_.createTimer(ros::Duration(1), &ContextManager::timerCallback, this);
+
   // Start the component-to-EMR linker actions
   TEMOTO_INFO("Starting the component-to-emr-item linker ...");
   startComponentToEmrLinker();
@@ -48,6 +50,13 @@ ContextManager::ContextManager()
   TEMOTO_INFO("Context Manager is ready.");
 }
 
+// TODO: Do we need this? 
+void ContextManager::timerCallback(const ros::TimerEvent&)
+{
+  // Request remote EMR configurations
+  TEMOTO_DEBUG_STREAM("Syncing EMR");
+  emr_syncer_.requestRemoteConfigs();
+}
 /*
  * EMR synchronization callback
  */

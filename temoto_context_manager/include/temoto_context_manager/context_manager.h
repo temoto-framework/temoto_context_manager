@@ -109,6 +109,8 @@ private:
                                  , const std::string& pipe_category
                                  , const std::string& requested_emr_item_name);
 
+  void timerCallback(const ros::TimerEvent&);
+
   // Resource manager for handling servers and clients
   temoto_core::rmp::ResourceManager<ContextManager> resource_manager_1_;
 
@@ -136,6 +138,9 @@ private:
   emr::EnvironmentModelRepository env_model_repository_;
 
   std::shared_ptr<EnvModelInterface> emr_interface; 
+
+  ros::Timer emr_sync_timer;
+
 
   // Configuration syncer that manages external resource descriptions and synchronizes them
   // between all other (context) managers
