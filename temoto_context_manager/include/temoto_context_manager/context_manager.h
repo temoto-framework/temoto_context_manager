@@ -55,6 +55,15 @@ private:
    */
   template <class Container> 
   bool getEmrItemHelper(const std::string& name, std::string type, ItemContainer& container);
+  /**
+   * @brief Get an item from EMR 
+   * 
+   * @param name 
+   * @param type 
+   * @param container 
+   * @return true 
+   * @return false 
+   */
   bool getEmrItem(const std::string& name, std::string type, ItemContainer& container);
   /**
    * @brief Update the EMR structure with new information

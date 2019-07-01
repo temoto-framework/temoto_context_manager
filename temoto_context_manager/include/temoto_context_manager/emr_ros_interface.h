@@ -17,6 +17,11 @@ namespace emr_ros_interface
 {
 using namespace temoto_context_manager;
 
+/**
+ * @brief EMR payload that houses ROS messages
+ * 
+ * @tparam RosMsg 
+ */
 template <class RosMsg>
 class RosPayload : public emr::PayloadEntry
 {
@@ -24,24 +29,48 @@ private:
   RosMsg payload_;
   std::string maintainer_;
 public:
+  /**
+   * @brief updates timestamp of stored message to now
+   * 
+   */
   void updateTime()
   {
     payload_.pose.header.stamp = ros::Time::now();
   }
+  /**
+   * @brief Updates time of stored message
+   * 
+   * @param new_time 
+   */
   void updateTime(ros::Time new_time)
   {
     payload_.pose.header.stamp = new_time;
   }
+  /**
+   * @brief Returns the message timestamp
+   * 
+   * @return ros::Time 
+   */
   ros::Time getTime() {return payload_.pose.header.stamp;}
-
+  /**
+   * @brief Return the name of maintainer.
+   * 
+   * The maintainer is responsible for publishing ROS transforms between this item and parent
+   * 
+   * @return std::string 
+   */
   std::string getMaintainer() {return maintainer_;}
-
+  /**
+   * @brief Set the maintainer 
+   * 
+   * @param maintainer 
+   */
   void setMaintainer(const std::string& maintainer)
   {
     maintainer_ = maintainer;
   }
   /**
-   * @brief Get the Name object
+   * @brief Get the name of this item
    * 
    * @return std::string 
    */
@@ -49,14 +78,19 @@ public:
   {
     return payload_.name;
   }
+  /**
+   * @brief Get the payload 
+   * 
+   * @return RosMsg 
+   */
   RosMsg getPayload() const {return payload_;};
   /**
-   * @brief Set the Payload object
+   * @brief Set the payload 
    * 
    * @param payload 
    */
   void setPayload(RosMsg & payload) {payload_ = payload;};
-
+  
   RosPayload(RosMsg payload) : payload_(payload)
   {
   }
@@ -71,7 +105,7 @@ class EmrRosInterface : public temoto_context_manager::EnvModelInterface
 {
 public:
 
-  // Inherited functions
+  // Inherited functions, for more info see definition of EnvModelInterface
 
   std::string getTypeByName(const std::string& name);
 
@@ -86,24 +120,9 @@ public:
   temoto_context_manager::ComponentContainer getNearestParentComponent(const std::string& name);
   temoto_context_manager::RobotContainer getNearestParentRobot(const std::string& name);
   void removeItem(const std::string& name);
-
   bool hasItem(const std::string& name);
-  /**
-   * @brief Update the EMR structure with new information
-   * 
-   * @param items_to_add 
-   * @param from_other_manager 
-   * @return std::vector<temoto_context_manager::ItemContainer> that could not be added
-   */
   std::vector<ItemContainer> updateEmr(const std::vector<ItemContainer> & items_to_add, bool update_time=false);
   std::vector<ItemContainer> updateEmr(const ItemContainer & item_to_add, bool update_time=false);
-  
-  /**
-   * @brief Save the EMR state as a temoto_context_manager::ItemContainer vector
-   * 
-   * @param emr 
-   * @return std::vector<temoto_context_manager::ItemContainer> 
-   */
   std::vector<ItemContainer> EmrToVector();
 
   EmrRosInterface(emr::EnvironmentModelRepository& emr, std::string identifier) : env_model_repository_(emr), identifier_(identifier) 
@@ -111,15 +130,14 @@ public:
   // TODO: Move this to context manager
   tf_timer_ = nh_.createTimer(ros::Duration(0.1), &EmrRosInterface::emrTfCallback, this);
 }
-
+  void updatePose(const std::string& name, const geometry_msgs::PoseStamped& newPose);
   /**
-   * @brief Update pose of EMR item
+   * @brief Helper function to handle templates
    * 
    * @tparam Container 
    * @param name 
    * @param newPose 
    */
-  void updatePose(const std::string& name, const geometry_msgs::PoseStamped& newPose);
   template <class Container> 
   void updatePoseHelper(const std::string& name, const geometry_msgs::PoseStamped& newPose)
   {
@@ -129,20 +147,41 @@ public:
     temp.pose = newPose;
     plptr->setPayload(temp);
   }
+  /**
+   * @brief Get the Container by name
+   * 
+   * @tparam Container 
+   * @param name 
+   * @return Container 
+   */
   template<class Container>
   Container getContainer(const std::string& name)
   {
-    
     std::lock_guard<std::mutex> lock(emr_iface_mutex);
     // TODO: What if a null pointer is returned?
     return getRosPayloadPtr<Container>(name)->getPayload();
   }
+  /**
+   * @brief Get the Container without locking mutex
+   * 
+   * TODO: Once tf handling is moved to the context manager, this method is redundant.
+   * 
+   * @tparam Container 
+   * @param name 
+   * @return Container 
+   */
   template<class Container>
   Container getContainerUnsafe(const std::string& name)
   {
     return getRosPayloadPtr<Container>(name)->getPayload();
   }
-
+  /**
+   * @brief Get RosPayload pointer
+   * 
+   * @tparam Container 
+   * @param name 
+   * @return std::shared_ptr<RosPayload<Container>> 
+   */
   template<class Container>
   std::shared_ptr<RosPayload<Container>> getRosPayloadPtr(const std::string& name)
   {

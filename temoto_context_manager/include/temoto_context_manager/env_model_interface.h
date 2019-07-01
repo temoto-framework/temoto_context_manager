@@ -8,7 +8,7 @@ namespace temoto_context_manager
 {
 
 /**
- * @brief Abstract class to highlight which functionalities 
+ * @brief Abstract class to describe required functionalities of environment model 
  * 
  */
 class EnvModelInterface
