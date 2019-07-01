@@ -79,6 +79,7 @@ temoto_context_manager::ObjectContainer tracked_object_;
 tf::TransformListener tf_listener;
 std::string object_name;
 std::shared_ptr<temoto_context_manager::EnvModelInterface> emr_interface_ptr;
+ros::Time last_measurement = ros::Time::now();
     
 /*
  * Interface 0 body
@@ -115,7 +116,6 @@ void startInterface_0()
     ROS_ERROR_STREAM(e.what());
   }
 
-
   for (auto topic_pair : topic_container.getOutputTopics())
   {
     TEMOTO_INFO_STREAM("* type: " << topic_pair.first << "; topic: " << topic_pair.second);
@@ -126,32 +126,37 @@ void artagDataCb(ar_track_alvar_msgs::AlvarMarkers msg)
 {
 
   // Look for the marker with the required tag id
-  for (auto& artag : msg.markers)
+  if ((ros::Time::now() - last_measurement) > ros::Duration(0.5))
   {
-    if (artag.id == tag_id_)
+    last_measurement = ros::Time::now();
+    
+    for (auto& artag : msg.markers)
     {
-      TEMOTO_INFO_STREAM( "AR tag with id = " << tag_id_ << " found");
-
-      // Update the pose of the object
-      // tracked_object_->pose.pose = artag.pose.pose;
-      artag.pose.header.frame_id = artag.header.frame_id;
-      geometry_msgs::PoseStamped newPose;
-      try
+      if (artag.id == tag_id_)
       {
-        tf_listener.transformPose(tracked_object_.parent, artag.pose, newPose);
-      }
-      catch(tf2::InvalidArgumentException& e )
-      {
-        TEMOTO_ERROR(e.what());
-      }
-      
-      newPose.header = artag.pose.header;
-      emr_interface_ptr->updatePose(object_name, newPose);
+        TEMOTO_INFO_STREAM( "AR tag with id = " << tag_id_ << " found");
 
-      // Publish the tracked object
-      // tracked_object_publisher_.publish(tracked_object_);
+        // Update the pose of the object
+        // tracked_object_->pose.pose = artag.pose.pose;
+        artag.pose.header.frame_id = artag.header.frame_id;
+        geometry_msgs::PoseStamped newPose;
+        try
+        {
+          tf_listener.transformPose(tracked_object_.parent, artag.pose, newPose);
+        }
+        catch(tf2::InvalidArgumentException& e )
+        {
+          TEMOTO_ERROR(e.what());
+        }
+        
+        newPose.header = artag.pose.header;
+        emr_interface_ptr->updatePose(object_name, newPose);
 
-      // TODO: do something reasonable if multiple markers with the same tag id are present
+        // Publish the tracked object
+        // tracked_object_publisher_.publish(tracked_object_);
+
+        // TODO: do something reasonable if multiple markers with the same tag id are present
+      }
     }
   }
 }
