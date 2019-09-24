@@ -115,6 +115,10 @@ public:
     std::lock_guard<std::mutex> lock(emr_mutex);
     return items;
   }
+  void removeItem(const std::string name)
+  {
+    items.erase(name);
+  }
   /**
    * @brief Get the root items of the structure
    * 

@@ -25,19 +25,20 @@
 #include "tf/transform_listener.h"
 #include "ar_track_alvar_msgs/AlvarMarkers.h"
 #include "geometry_msgs/PoseStamped.h"
+#include "geometry_msgs/PoseWithCovarianceStamped.h"
 
 /* 
- * ACTION IMPLEMENTATION of TaTrackArtag 
+ * ACTION IMPLEMENTATION of TaTrackLocalization 
  */
-class TaTrackArtag : public temoto_nlp::BaseTask
+class TaTrackLocalization : public temoto_nlp::BaseTask
 {
 public:
 
 /* REQUIRED BY TEMOTO */
-TaTrackArtag()
+TaTrackLocalization()
 {
   // ---> YOUR CONSTRUCTION ROUTINES HERE <--- //
-  TEMOTO_INFO("TaTrackArtag constructed");
+  TEMOTO_INFO("TaTrackLocalization constructed");
 }
     
 /* REQUIRED BY TEMOTO */
@@ -61,9 +62,9 @@ std::vector<temoto_nlp::Subject> getSolution()
   return output_subjects;
 }
 
-~TaTrackArtag()
+~TaTrackLocalization()
 {
-  TEMOTO_INFO("TaTrackArtag destructed");
+  TEMOTO_INFO("TaTrackLocalization destructed");
 }
 
 /********************* END OF REQUIRED PUBLIC INTERFACE *********************/
@@ -72,14 +73,13 @@ std::vector<temoto_nlp::Subject> getSolution()
 private:
 
 ros::NodeHandle nh_;
-ros::Subscriber artag_subscriber_;
+ros::Subscriber amcl_subscriber;
 ros::Publisher tracked_object_publisher_;
 uint32_t tag_id_;
-temoto_context_manager::ObjectContainer tracked_object_;
+temoto_context_manager::RobotContainer tracked_robot_;
 tf::TransformListener tf_listener;
-std::string object_name;
+std::string robot_name;
 std::shared_ptr<temoto_context_manager::EnvModelInterface> emr_interface_ptr;
-ros::Time last_measurement = ros::Time::now();
     
 /*
  * Interface 0 body
@@ -88,7 +88,7 @@ void startInterface_0()
 {
   /* EXTRACTION OF INPUT SUBJECTS */
   temoto_nlp::Subject what_0_in = temoto_nlp::getSubjectByType("what", input_subjects);
-  object_name = what_0_in.words_[0];
+  robot_name = what_0_in.words_[0];
 
   temoto_nlp::Subject what_1_in = temoto_nlp::getSubjectByType("what", input_subjects);
   std::string  what_1_word_in = what_1_in.words_[0];
@@ -96,25 +96,12 @@ void startInterface_0()
   temoto_core::TopicContainer topic_container = boost::any_cast<temoto_core::TopicContainer>(what_1_in.data_[1].value);
   emr_interface_ptr = 
     boost::any_cast<std::shared_ptr<temoto_context_manager::EnvModelInterface>>(what_1_in.data_[2].value);
-  tracked_object_ = emr_interface_ptr->getObject(object_name);
-  tag_id_ = tracked_object_.tag_id;
+  tracked_robot_ = emr_interface_ptr->getRobot(robot_name);
   
-  TEMOTO_INFO_STREAM("Starting to track object: " << object_name);
-  std::string topic = topic_container.getOutputTopic("marker_data");
-  TEMOTO_INFO_STREAM("Receiving information on topics:" << topic);
-  artag_subscriber_ = nh_.subscribe(topic, 1000, &TaTrackArtag::artagDataCb, this);
-
-  try
-  {
-  temoto_context_manager::MapContainer map = 
-    emr_interface_ptr->
-      getNearestParentMap(object_name);
-  TEMOTO_WARN_STREAM("Highest parent map: " << map.name);
-  }
-  catch(const std::exception& e)
-  {
-    ROS_ERROR_STREAM(e.what());
-  }
+  TEMOTO_INFO_STREAM("Starting to track robot: " << robot_name);
+  std::string topic = topic_container.getOutputTopic("pose_out");
+  TEMOTO_INFO_STREAM("Receiving information on topic:" << topic);
+  amcl_subscriber = nh_.subscribe(topic, 1000, &TaTrackLocalization::amclDataCb, this);
 
   for (auto topic_pair : topic_container.getOutputTopics())
   {
@@ -122,46 +109,49 @@ void startInterface_0()
   }
 }
 
-void artagDataCb(ar_track_alvar_msgs::AlvarMarkers msg)
+void amclDataCb(geometry_msgs::PoseWithCovarianceStamped msg)
 {
 
   // Look for the marker with the required tag id
-  if ((ros::Time::now() - last_measurement) > ros::Duration(0.5))
+  TEMOTO_DEBUG_STREAM("Updating robot " << robot_name << " pose in ta_track_localization.");
+  // Update the pose of the object
+  // tracked_robot_->pose.pose = artag.pose.pose;
+  // msg.pose.header.frame_id = msg.header.frame_id;
+  geometry_msgs::PoseStamped pose_in;
+  pose_in.header = msg.header;
+  pose_in.pose.position.x = msg.pose.pose.position.x;
+  pose_in.pose.position.y = msg.pose.pose.position.y;
+  pose_in.pose.position.z = msg.pose.pose.position.z;
+  pose_in.pose.orientation.x = msg.pose.pose.orientation.x;
+  pose_in.pose.orientation.y = msg.pose.pose.orientation.y;
+  pose_in.pose.orientation.z = msg.pose.pose.orientation.z;
+  pose_in.pose.orientation.w = msg.pose.pose.orientation.w;
+
+  geometry_msgs::PoseStamped newPose;
+  try
   {
-    last_measurement = ros::Time::now();
-    
-    for (auto& artag : msg.markers)
-    {
-      if (artag.id == tag_id_)
-      {
-        TEMOTO_INFO_STREAM( "AR tag with id = " << tag_id_ << " found");
-
-        // Update the pose of the object
-        // tracked_object_->pose.pose = artag.pose.pose;
-        artag.pose.header.frame_id = artag.header.frame_id;
-        geometry_msgs::PoseStamped newPose;
-        try
-        {
-          tf_listener.transformPose(tracked_object_.parent, artag.pose, newPose);
-        }
-        catch(tf2::InvalidArgumentException& e )
-        {
-          TEMOTO_ERROR(e.what());
-        }
-        
-        newPose.header = artag.pose.header;
-        emr_interface_ptr->updatePose(object_name, newPose);
-
-        // Publish the tracked object
-        // tracked_object_publisher_.publish(tracked_object_);
-
-        // TODO: do something reasonable if multiple markers with the same tag id are present
-      }
-    }
+    tf_listener.transformPose(tracked_robot_.parent, pose_in, newPose);
   }
+  catch(tf2::InvalidArgumentException& e )
+  {
+    TEMOTO_ERROR(e.what());
+  }
+  
+  newPose.header = msg.header;
+  emr_interface_ptr->updatePose(tracked_robot_.name, newPose);
+  // tracked_robot_.pose = newPose;
+  // temoto_context_manager::ItemContainer item;
+  // item.type = emr_ros_interface::emr_containers::ROBOT;
+  // item.maintainer = temoto_core::common::getTemotoNamespace();
+  // item.serialized_container = temoto_core::serializeROSmsg(tracked_robot_);
+  // emr_interface_ptr->updateEmr(item, false);
+
+  // Publish the tracked object
+  // tracked_object_publisher_.publish(tracked_robot_);
+
 }
 
-}; // TaTrackArtag class
+}; // TaTrackLocalization class
 
 /* REQUIRED BY CLASS LOADER */
-CLASS_LOADER_REGISTER_CLASS(TaTrackArtag, temoto_nlp::BaseTask);
+CLASS_LOADER_REGISTER_CLASS(TaTrackLocalization, temoto_nlp::BaseTask);

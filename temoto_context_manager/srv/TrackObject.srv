@@ -1,6 +1,8 @@
 # Name of the objec
 string object_name
 
+bool use_only_local_resources
+
 # RMP
 temoto_core/RMPRequest rmp
 

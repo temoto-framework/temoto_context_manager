@@ -1,10 +1,10 @@
 #include "ros/package.h"
+#include "temoto_core/common/ros_serialization.h"
 #include "temoto_context_manager/context_manager.h"
 #include <algorithm>
 #include <utility>
 #include <yaml-cpp/yaml.h>
 #include <fstream>
-#include "temoto_core/common/ros_serialization.h"
 
 namespace temoto_context_manager
 {
@@ -17,6 +17,7 @@ ContextManager::ContextManager()
   , emr_syncer_(srv_name::MANAGER, srv_name::SYNC_OBJECTS_TOPIC, &ContextManager::emrSyncCb, this)
   , action_engine_(this, false, ros::package::getPath(ROS_PACKAGE_NAME) + "/config/action_dst.yaml")
 {
+  emr_interface = std::make_shared<emr_ros_interface::EmrRosInterface>(env_model_repository_, temoto_core::common::getTemotoNamespace());
   /*
    * Start the servers
    */
@@ -33,9 +34,14 @@ ContextManager::ContextManager()
   // "Update EMR" 
   TEMOTO_INFO("Starting the EMR update server");
   update_emr_server_ = nh_.advertiseService(srv_name::SERVER_UPDATE_EMR, &ContextManager::updateEmrCb, this);
+  get_emr_item_server_ = nh_.advertiseService(srv_name::SERVER_GET_EMR_ITEM, &ContextManager::getEmrItemCb, this);
+
+  get_emr_vector_server_ = nh_.advertiseService(srv_name::SERVER_GET_EMR_VECTOR, &ContextManager::getEmrVectorCb, this);
   
   // Request remote EMR configurations
   emr_syncer_.requestRemoteConfigs();
+
+  emr_sync_timer = nh_.createTimer(ros::Duration(1), &ContextManager::timerCallback, this);
 
   // Start the component-to-EMR linker actions
   TEMOTO_INFO("Starting the component-to-emr-item linker ...");
@@ -44,6 +50,13 @@ ContextManager::ContextManager()
   TEMOTO_INFO("Context Manager is ready.");
 }
 
+// TODO: Do we need this? 
+void ContextManager::timerCallback(const ros::TimerEvent&)
+{
+  // Request remote EMR configurations
+  TEMOTO_DEBUG_STREAM("Syncing EMR");
+  emr_syncer_.requestRemoteConfigs();
+}
 /*
  * EMR synchronization callback
  */
@@ -91,7 +104,7 @@ Items ContextManager::updateEmr(const Items& items_to_add, bool from_other_manag
 {
   
   // Keep track of failed add/update attempts
-  std::vector<ItemContainer> failed_items = emr_interface.updateEmr(items_to_add, update_time);
+  std::vector<ItemContainer> failed_items = emr_interface->updateEmr(items_to_add, update_time);
 
   // If this object was added by its own namespace, then advertise this config to other managers
   if (!from_other_manager)
@@ -109,33 +122,113 @@ Items ContextManager::updateEmr(const Items& items_to_add, bool from_other_manag
 void ContextManager::advertiseEmr()
 {
   // Publish all items 
-  Items items_payload = emr_interface.EmrToVector();
+  Items items_payload = emr_interface->EmrToVector();
   // If there is something to send, advertise.
   if (items_payload.size()) 
   {
     emr_syncer_.advertise(items_payload);
   }
 }
+template <class Container>
+std::string ContextManager::parseContainerType()
+{
+  if (std::is_same<Container, temoto_context_manager::ObjectContainer>::value) 
+  {
+    return emr_ros_interface::emr_containers::OBJECT;
+  }
+  else if (std::is_same<Container, temoto_context_manager::MapContainer>::value) 
+  {
+    return emr_ros_interface::emr_containers::MAP;
+  }
+  else if (std::is_same<Container, temoto_context_manager::ComponentContainer>::value) 
+  {
+    return emr_ros_interface::emr_containers::COMPONENT;
+  }
+  else if (std::is_same<Container, temoto_context_manager::RobotContainer>::value) 
+  {
+    return emr_ros_interface::emr_containers::ROBOT;
+  }
+  ROS_ERROR_STREAM("UNRECOGNIZED TYPE");
+  return "FAULTY_TYPE";
+}
+
+bool ContextManager::getEmrItem(const std::string& name, std::string type, ItemContainer& container)
+{
+  std::string real_type = emr_interface->getTypeByName(name);
+  // Check if requested type matches real type
+  if (real_type == type) 
+  {
+    if (type == emr_ros_interface::emr_containers::OBJECT) 
+    {
+      auto rospl = emr_interface->getObject(name);
+      container.serialized_container = temoto_core::serializeROSmsg(rospl);
+      container.type = type;
+      return true;
+    }
+    else if (type == emr_ros_interface::emr_containers::MAP) 
+    {
+      auto rospl = emr_interface->getMap(name);
+      container.serialized_container = temoto_core::serializeROSmsg(rospl);
+      container.type = type;
+      return true;
+    }
+    else if (type == emr_ros_interface::emr_containers::COMPONENT) 
+    {
+      auto rospl = emr_interface->getComponent(name);
+      container.serialized_container = temoto_core::serializeROSmsg(rospl);
+      container.type = type;
+      return true;
+    }
+    else if (type == emr_ros_interface::emr_containers::ROBOT) 
+    {
+      auto rospl = emr_interface->getRobot(name);
+      container.serialized_container = temoto_core::serializeROSmsg(rospl);
+      container.type = type;
+      return true;
+    }
+    else
+    {
+      TEMOTO_ERROR_STREAM("Unrecognized container type specified: " << type << std::endl);
+      return false;
+    }
+  }
+  else
+  {
+    TEMOTO_ERROR_STREAM("Wrong type requested for EMR node with name: " << name << std::endl);
+    TEMOTO_ERROR_STREAM("Requested type: " << type << std::endl);
+    TEMOTO_ERROR_STREAM("Actual type: "<< real_type << std::endl);
+    return false;
+  }
+}
+bool ContextManager::getEmrVectorCb(GetEMRVector::Request& req, GetEMRVector::Response& res)
+{
+  res.items = emr_interface->EmrToVector();
+  return true;
+}
 std::vector<std::string> ContextManager::getItemDetectionMethods(const std::string& name)
 {
-  ItemPtr itemptr = env_model_repository_.getItemByName(name);
-  if (itemptr == nullptr) 
+  if (!emr_interface->hasItem(name))
   {
     throw CREATE_ERROR(temoto_core::error::Code::UNKNOWN_OBJECT, "Item " + name + " not found!");
   }
   TEMOTO_INFO_STREAM("The requested item is known");
-  std::string type = itemptr->getPayload()->getType();
-  if (type == "OBJECT") 
+  std::string type = emr_interface->getTypeByName(name);
+  if (type == emr_ros_interface::emr_containers::OBJECT) 
   {
-    ObjectContainer obj = emr_interface.getContainer<ObjectContainer>(name);
+    ObjectContainer obj = emr_interface->getObject(name);
     return obj.detection_methods;
   }
-  else if (type == "MAP") 
+  else if (type == emr_ros_interface::emr_containers::MAP) 
   {
-    MapContainer map = emr_interface.getContainer<MapContainer>(name);
+    MapContainer map = emr_interface->getMap(name);
     return map.detection_methods;
   }
-  else if (type == "COMPONENT")
+  else if (type == emr_ros_interface::emr_containers::ROBOT) 
+  {
+    RobotContainer robot = emr_interface->getRobot(name);
+    return robot.detection_methods;
+  }
+  else if (type == emr_ros_interface::emr_containers::COMPONENT)
   {
     throw CREATE_ERROR(temoto_core::error::Code::INVALID_CONTAINER_TYPE, "Item of type COMPONENT has no detection methods!");
   }
@@ -171,6 +264,17 @@ bool ContextManager::updateEmrCb(UpdateEmr::Request& req, UpdateEmr::Response& r
   TEMOTO_INFO("Received a request to add %ld item(s) to the EMR.", req.items.size());
 
   res.failed_items = ContextManager::updateEmr(req.items, false);
+  return true;
+}
+
+bool ContextManager::getEmrItemCb(GetEMRItem::Request& req, GetEMRItem::Response& res)
+{
+  TEMOTO_INFO_STREAM("Received a request to get item: " << req.name << "from the EMR." << std::endl);
+  ItemContainer nc;
+  
+  res.success = ContextManager::getEmrItem(req.name, req.type, nc);
+  res.item = nc;
+  TEMOTO_WARN_STREAM("t1 " << res.success);
   return true;
 }
 
@@ -225,6 +329,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     temoto_component_manager::LoadPipe load_pipe_msg;
     // addDetectionMethods(detection_methods);
     std::string selected_pipe;
+    load_pipe_msg.request.use_only_local_segments = req.use_only_local_resources;
 
     /*
      * Loop over different pipe categories and try to load one. The loop is iterated either until
@@ -255,118 +360,9 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
          * Check if any segments of this pipe require knowledge about any geometrical 
          * parameters ,i.e., frames
          */
-        std::vector<diagnostic_msgs::KeyValue*> spec_ptrs;
-        std::vector<diagnostic_msgs::KeyValue*> post_spec_ptrs;
-
-        for (unsigned int i=0; i<pipe_info_msg.segments.size(); i++)
+        if (!getParameterSpecifications(pipe_info_msg, load_pipe_msg, pipe_category, req.object_name))
         {
-          const temoto_component_manager::PipeSegment& pipe_segment = pipe_info_msg.segments[i];
-          const std::vector<std::string>& required_params = pipe_segment.required_parameters;
-
-          // Check if "frame_id" is listed in the required parameters
-          if ( std::find(required_params.begin(), required_params.end(), "frame_id") == required_params.end())
-          {
-            continue;
-          }
-
-          TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires 'frame_id' parameter specifications"
-                     , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
-
-          temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
-          diagnostic_msgs::KeyValue frame_id_spec;
-
-          // Check if there are any emr-linked components that have the required type (e.g., 2D camera)
-          ComponentInfos component_infos = component_to_emr_registry_.hasLinks(pipe_segment.segment_type);
-          if (!component_infos.empty())
-          {
-           TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' can be specified in-place"
-                     , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
-
-            // TODO: Implement a selection metric
-            temoto_component_manager::Component& chosen_component = component_infos[0];
-            frame_id_spec.key = "frame_id";
-            frame_id_spec.value = chosen_component.component_name;
-            pipe_seg_spec.component_name = chosen_component.component_name; 
-            pipe_seg_spec.segment_index = i;
-            pipe_seg_spec.parameters.push_back(frame_id_spec);
-            load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
-            load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
-
-            // TODO: That's the most horriffic beast i've ever created. Slay it asap. The idea is
-            // that instead of maintaining indexes to pipe segments, its simpler to keep the pointers
-            // to specific parameters
-            spec_ptrs.push_back(&(load_pipe_msg.request.pipe_segment_specifiers.back().parameters.back()));
-          }
-          else
-          {
-            TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires post-specification"
-                     , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
-
-            // If no emr-linked components were found then this is either an currently not defined
-            // EMR item, or this component does not have geometry, i.e., it's an algorithm
-            // Mark this component to be assessed after each segment has been checked
-            frame_id_spec.key = "frame_id";
-            pipe_seg_spec.segment_index = i;
-            pipe_seg_spec.parameters.push_back(frame_id_spec);       
-            load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
-
-            // TODO: That's the most horriffic beast i've ever created. Slay it asap. The idea is
-            // that instead of maintaining indexes to pipe segments, its simpler to keep the pointers
-            // to specific parameters
-            post_spec_ptrs.push_back(&(load_pipe_msg.request.pipe_segment_specifiers.back().parameters.back()));
-          }
-        }
-
-        /*
-         * Check if there were any post spec segments
-         */ 
-        if (!post_spec_ptrs.empty())
-        {
-          TEMOTO_DEBUG("Trying to post-specify %d segments of pipe '%s'", post_spec_ptrs.size()
-            , pipe_category.c_str());
-
-          // If this pipe contains segments that need specifications but cannot be specified
-          // then this pipe cannot be used
-          if (spec_ptrs.empty())
-          {
-            TEMOTO_DEBUG("Cannot post-specify any segments of pipe '%s' because there are no"
-             "in-place specificationss", pipe_category.c_str());
-            continue;
-          }
-
-          // Go through the parameters which need post 
-          for (auto post_spec_ptr : post_spec_ptrs)
-          {
-            // Look the spec information from specified parameters
-            for (auto spec_ptr : spec_ptrs)
-            {
-              if (post_spec_ptr->key == spec_ptr->key)
-              {
-                TEMOTO_DEBUG("Post-specifying '%s'(key) as '%s'(value)", post_spec_ptr->key.c_str()
-                  , spec_ptr->value.c_str());
-                // TODO: the post_spec_ptr->value might be overwritten
-                post_spec_ptr->value = spec_ptr->value;
-              }
-            } 
-          }
-
-          // Check if all post parameters have been specified
-          bool parameters_specified = true;
-          for (auto post_spec_ptr : post_spec_ptrs)
-          {
-            if (post_spec_ptr->value.empty())
-            {
-              parameters_specified = false;
-              break;
-            }
-          }
-
-          // If some parameters are still without a value, then this pipe
-          // cannot be used
-          if (!parameters_specified)
-          {
-            continue;
-          }
+          continue;
         }
 
         load_pipe_msg.request.pipe_category = pipe_category;
@@ -448,7 +444,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     sub_1.addData("pointer", boost::any_cast<temoto_core::TopicContainer>(pipe_topics));
 
     // Pass a pointer to EMR interface, which will be used to access EMR without ROS messaging overhead
-    sub_1.addData("pointer", boost::any_cast<emr_ros_interface::EmrRosInterface*>(&emr_interface));
+    sub_1.addData("pointer", boost::any_cast<std::shared_ptr<EnvModelInterface>>(emr_interface));
 
     subjects.push_back(sub_0);
     subjects.push_back(sub_1);
@@ -503,7 +499,7 @@ void ContextManager::startComponentToEmrLinker()
     // Subject that will contain the name of the tracked object.
     // Necessary when the tracker has to be stopped
     temoto_nlp::Subject sub_0("what", "emr");
-    sub_0.addData("pointer", boost::any_cast<emr_ros_interface::EmrRosInterface*>(&emr_interface));
+    sub_0.addData("pointer", boost::any_cast<std::shared_ptr<EnvModelInterface>>(emr_interface));
 
     // Subject that will contain the data necessary for the specific tracker
     temoto_nlp::Subject sub_1("what", "emr-to-component registry");
@@ -643,6 +639,242 @@ std::vector<std::string> ContextManager::getOrderedDetectionMethods()
   }
 
   return odm_vec;
+}
+
+void addSpecifierToSegment( diagnostic_msgs::KeyValue& parameter
+                          , std::vector<temoto_component_manager::PipeSegmentSpecifier>& seg_specifiers
+                          , unsigned int segment_index)
+{
+  bool seg_specifier_exists = false;
+  for (auto& seg_specifier : seg_specifiers)
+  {
+    if (seg_specifier.segment_index == segment_index)
+    {
+      seg_specifier.parameters.push_back(parameter);
+      seg_specifier_exists = true;
+      break;
+    }
+  }
+  if (!seg_specifier_exists)
+  {
+    temoto_component_manager::PipeSegmentSpecifier seg_specifier;
+    seg_specifier.segment_index = segment_index;
+    seg_specifier.parameters.push_back(parameter);
+    seg_specifiers.push_back(seg_specifier);
+  }
+}
+
+bool ContextManager::getParameterSpecifications( const temoto_component_manager::Pipe& pipe_info_msg
+                                               , temoto_component_manager::LoadPipe& load_pipe_msg
+                                               , const std::string& pipe_category
+                                               , const std::string& requested_emr_item_name)
+{
+  /*
+   * Check if any segments of this pipe require knowledge about any geometrical 
+   * parameters ,i.e., frames
+   */
+  std::vector<diagnostic_msgs::KeyValue*> spec_ptrs;
+  std::vector<diagnostic_msgs::KeyValue*> post_spec_ptrs;
+
+  for (unsigned int i=0; i<pipe_info_msg.segments.size(); i++)
+  {
+    const temoto_component_manager::PipeSegment& pipe_segment = pipe_info_msg.segments[i];
+    const std::vector<std::string>& required_params = pipe_segment.required_parameters;
+
+    /*
+     * Loop through the required parameters
+     */ 
+    for (const auto& required_param : required_params)
+    {
+      /*
+       * Frame ID specification
+       */ 
+      if (required_param == "frame_id")
+      {
+        TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires 'frame_id' parameter specifications"
+                , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
+
+        temoto_component_manager::PipeSegmentSpecifier pipe_seg_spec;
+        diagnostic_msgs::KeyValue frame_id_spec;
+
+        // Check if there are any emr-linked components that have the required type (e.g., 2D camera)
+        ComponentInfos component_infos = component_to_emr_registry_.hasLinks(pipe_segment.segment_type);
+        if (!component_infos.empty())
+        {
+          TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' can be specified in-place"
+                    , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
+
+          // TODO: Implement a selection metric
+          temoto_component_manager::Component& chosen_component = component_infos[0];
+          frame_id_spec.key = "frame_id";
+          frame_id_spec.value = chosen_component.component_name;
+          pipe_seg_spec.component_name = chosen_component.component_name; 
+          pipe_seg_spec.segment_index = i;
+          load_pipe_msg.request.pipe_segment_specifiers.push_back(pipe_seg_spec);
+          addSpecifierToSegment(frame_id_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
+          load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
+
+          // TODO: That's the most horriffic beast i've ever created. Slay it asap. The idea is
+          // that instead of maintaining indexes to pipe segments, its simpler to keep the pointers
+          // to specific parameters
+          spec_ptrs.push_back(&(load_pipe_msg.request.pipe_segment_specifiers.back().parameters.back()));
+        }
+        else
+        {
+          TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires post-specification"
+                    , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
+
+          // If no emr-linked components were found then this is either an currently not defined
+          // EMR item, or this component does not have geometry, i.e., it's an algorithm
+          // Mark this component to be assessed after each segment has been checked
+          frame_id_spec.key = "frame_id";
+          addSpecifierToSegment(frame_id_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
+
+          // TODO: That's the most horriffic beast i've ever created. Slay it asap. The idea is
+          // that instead of maintaining indexes to pipe segments, its simpler to keep the pointers
+          // to specific parameters
+          post_spec_ptrs.push_back(&(load_pipe_msg.request.pipe_segment_specifiers.back().parameters.back()));
+        }
+      }
+      
+      /*
+       * Odometry Frame ID specification
+       */
+      else if (required_param == "odom_frame_id")
+      {
+        TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires 'odom_frame_id' parameter specifications"
+                    , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
+        try
+        {
+          diagnostic_msgs::KeyValue odom_frame_id_spec;
+          RobotContainer rc = emr_interface->getRobot(requested_emr_item_name);
+          odom_frame_id_spec.key = "odom_frame_id";
+          odom_frame_id_spec.value = temoto_core::common::getTemotoNamespace() + "/" + rc.odom_frame_id; 
+          addSpecifierToSegment(odom_frame_id_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
+          load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
+        }
+        catch(const std::exception& e)
+        {
+          std::cerr << e.what() << '\n';
+          return false;
+        }
+      }
+
+      /*
+       * Base Link Frame ID specification
+       */
+      else if (required_param == "base_frame_id")
+      {
+        TEMOTO_DEBUG("Segment %d (type: %s) of pipe '%s' requires 'base_frame_id' parameter specifications"
+                    , i, pipe_segment.segment_type.c_str(), pipe_category.c_str());
+        try
+        {
+          RobotContainer rc = emr_interface->getRobot(requested_emr_item_name);
+          diagnostic_msgs::KeyValue base_frame_id_spec;
+          base_frame_id_spec.key = "base_frame_id";
+          base_frame_id_spec.value = temoto_core::common::getTemotoNamespace() + "/" + rc.base_frame_id; 
+          addSpecifierToSegment(base_frame_id_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
+          load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
+        }
+        catch(const std::exception& e)
+        {
+          std::cerr << e.what() << '\n';
+          return false;
+        }
+      }
+
+      /*
+       * Map topic specification
+       */
+      else if (required_param == "map_topic")
+      {
+        MapContainer mc = emr_interface->getNearestParentMap(requested_emr_item_name);
+        diagnostic_msgs::KeyValue map_topic_spec;
+        map_topic_spec.key = "map_topic";
+        map_topic_spec.value = mc.topic;
+        addSpecifierToSegment(map_topic_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
+        load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
+      }
+
+      /*
+       * Map Frame ID specification
+       */
+      else if (required_param == "global_frame_id")
+      {
+        MapContainer mc = emr_interface->getNearestParentMap(requested_emr_item_name);
+        diagnostic_msgs::KeyValue map_frame_id_spec;
+        map_frame_id_spec.key = "global_frame_id";
+        map_frame_id_spec.value = mc.name;
+        addSpecifierToSegment(map_frame_id_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
+        load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
+      }
+
+      /*
+       * TF prefix specification
+       */
+      else if (required_param == "tf_prefix")
+      {
+        diagnostic_msgs::KeyValue tf_prefix_spec;
+        tf_prefix_spec.key = "tf_prefix";
+        tf_prefix_spec.value = temoto_core::common::getTemotoNamespace();
+        addSpecifierToSegment(tf_prefix_spec, load_pipe_msg.request.pipe_segment_specifiers, i);
+        load_pipe_msg.request.pipe_name = pipe_info_msg.pipe_name;
+      }
+    }
+
+    /*
+     * Check if there were any post spec segments
+     */ 
+    if (!post_spec_ptrs.empty())
+    {
+      TEMOTO_DEBUG("Trying to post-specify %lu segments of pipe '%s'", post_spec_ptrs.size()
+        , pipe_category.c_str());
+
+      // If this pipe contains segments that need specifications but cannot be specified
+      // then this pipe cannot be used
+      if (spec_ptrs.empty())
+      {
+        TEMOTO_DEBUG("Cannot post-specify any segments of pipe '%s' because there are no"
+          "in-place specificationss", pipe_category.c_str());
+        return false;
+      }
+      
+      // Go through the parameters which need post 
+      for (auto post_spec_ptr : post_spec_ptrs)
+      {
+        // Look the spec information from specified parameters
+        for (auto spec_ptr : spec_ptrs)
+        {
+          if (post_spec_ptr->key == spec_ptr->key)
+          {
+            TEMOTO_DEBUG("Post-specifying '%s'(key) as '%s'(value)", post_spec_ptr->key.c_str()
+              , spec_ptr->value.c_str());
+            // TODO: the post_spec_ptr->value might be overwritten
+            post_spec_ptr->value = spec_ptr->value;
+          }
+        } 
+      }
+
+      // Check if all post parameters have been specified
+      bool parameters_specified = true;
+      for (auto post_spec_ptr : post_spec_ptrs)
+      {
+        if (post_spec_ptr->value.empty())
+        {
+          parameters_specified = false;
+          break;
+        }
+      }
+
+      // If some parameters are still without a value, then this pipe
+      // cannot be used
+      if (!parameters_specified)
+      {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 }  // namespace temoto_context_manager

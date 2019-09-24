@@ -9,7 +9,7 @@
 
 #include "temoto_context_manager/context_manager_services.h"
 #include "temoto_context_manager/context_manager_containers.h"
-#include "temoto_context_manager/env_model_repository.h"
+#include "temoto_context_manager/env_model_interface.h"
 #include "temoto_context_manager/emr_ros_interface.h"
 #include "temoto_context_manager/emr_item_to_component_link.h"
 
@@ -39,8 +39,32 @@ private:
   
   bool updateEmrCb(UpdateEmr::Request& req, UpdateEmr::Response& res);
 
+  bool getEmrItemCb(GetEMRItem::Request& req, GetEMRItem::Response& res);
+
+  bool getEmrVectorCb(GetEMRVector::Request& req, GetEMRVector::Response& res);
+
   void trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload);
 
+  /**
+   * @brief Get node as nodecontainer from EMR
+   * 
+   * @param name 
+   * @param container 
+   * @return true 
+   * @return false 
+   */
+  template <class Container> 
+  bool getEmrItemHelper(const std::string& name, std::string type, ItemContainer& container);
+  /**
+   * @brief Get an item from EMR 
+   * 
+   * @param name 
+   * @param type 
+   * @param container 
+   * @return true 
+   * @return false 
+   */
+  bool getEmrItem(const std::string& name, std::string type, ItemContainer& container);
   /**
    * @brief Update the EMR structure with new information
    * 
@@ -70,7 +94,31 @@ private:
 
   std::vector<std::string> getItemDetectionMethods(const std::string& name);
 
+  template <class Container>
+  std::string parseContainerType();
+
+  /**
+   * @brief Invokes an action that tries to find connections between component manager components
+   * and EMR items
+   */
   void startComponentToEmrLinker();
+
+  /**
+   * @brief Tries to retrieve the required parameters of pipe segments 
+   * 
+   * @param pipe_info_msg 
+   * @param load_pipe_msg 
+   * @param pipe_category 
+   * @param requested_emr_item_name 
+   * @return true no parameters were required or all parameters were specified
+   * @return false if at least one parameter was left unspecified
+   */
+  bool getParameterSpecifications( const temoto_component_manager::Pipe& pipe_info_msg
+                                 , temoto_component_manager::LoadPipe& load_pipe_msg
+                                 , const std::string& pipe_category
+                                 , const std::string& requested_emr_item_name);
+
+  void timerCallback(const ros::TimerEvent&);
 
   // Resource manager for handling servers and clients
   temoto_core::rmp::ResourceManager<ContextManager> resource_manager_1_;
@@ -88,6 +136,8 @@ private:
 
   ros::ServiceServer get_emr_item_server_;
 
+  ros::ServiceServer get_emr_vector_server_;
+
   ObjectPtrs objects_;
 
   std::map<int, std::string> m_tracked_objects_local_;
@@ -96,7 +146,10 @@ private:
 
   emr::EnvironmentModelRepository env_model_repository_;
 
-  emr_ros_interface::EmrRosInterface emr_interface{env_model_repository_, temoto_core::common::getTemotoNamespace()};
+  std::shared_ptr<EnvModelInterface> emr_interface; 
+
+  ros::Timer emr_sync_timer;
+
 
   // Configuration syncer that manages external resource descriptions and synchronizes them
   // between all other (context) managers
@@ -111,6 +164,13 @@ private:
   std::map<std::string, temoto_core::Reliability> detection_method_history_;
 
   std::pair<int, std::string> active_detection_method_;
+
+  std::map<std::string, std::string> parameter_map_ =
+  {
+    {"frame_id", emr_ros_interface::emr_containers::COMPONENT},
+    {"odom_frame_id", emr_ros_interface::emr_containers::ROBOT},
+    {"base_frame_id", emr_ros_interface::emr_containers::ROBOT}
+  };
 };
 
 } // temoto_context_manager namespace

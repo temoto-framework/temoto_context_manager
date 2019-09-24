@@ -7,6 +7,7 @@
 #   MAP - a MapContainer.msg object
 #   OBJECT - an ObjectContainer.msg object
 #   COMPONTENT - a ComponentContainer.msg object
+#   ROBOT - a RobotContainer.msg object
 string type
 
 string maintainer

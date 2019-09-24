@@ -84,12 +84,12 @@ void startInterface_0()
   /* EXTRACTION OF INPUT SUBJECTS */
   temoto_nlp::Subject what_0_in = temoto_nlp::getSubjectByType("what", input_subjects);
   std::string  what_0_word_in = what_0_in.words_[0];
-  emr_ros_interface::EmrRosInterface* eri = 
-    boost::any_cast<emr_ros_interface::EmrRosInterface*>(what_0_in.data_[0].value);
+  std::shared_ptr<temoto_context_manager::EnvModelInterface> eri = 
+    boost::any_cast<std::shared_ptr<temoto_context_manager::EnvModelInterface>>(what_0_in.data_[0].value);
 
   temoto_nlp::Subject what_1_in = temoto_nlp::getSubjectByType("what", input_subjects);
   std::string  what_1_word_in = what_1_in.words_[0];
-  temoto_context_manager::ComponentToEmrRegistry* c_emr_reg = 
+  temoto_context_manager::ComponentToEmrRegistry* c_em_reg = 
     boost::any_cast<temoto_context_manager::ComponentToEmrRegistry*>(what_1_in.data_[0].value);
 
   // Initialize the list components service client
@@ -120,15 +120,15 @@ void startInterface_0()
       component_info_msgs_ = list_components_srvmsg.response.component_infos;
       for(const auto& ci : component_info_msgs_)
       {
-        if (eri->hasItem(ci.component_name) && !c_emr_reg->hasLink(ci.component_name))
+        if (eri->hasItem(ci.component_name) && !c_em_reg->hasLink(ci.component_name))
         {
           TEMOTO_INFO_STREAM("Linking component: " << ci.component_name);
-          c_emr_reg->addLink(ci, ci.component_name);
+          c_em_reg->addLink(ci, ci.component_name);
         }
-        else if (!eri->hasItem(ci.component_name) && c_emr_reg->hasLink(ci.component_name))
+        else if (!eri->hasItem(ci.component_name) && c_em_reg->hasLink(ci.component_name))
         {
           TEMOTO_INFO_STREAM("Un-linking component: " << ci.component_name);
-          c_emr_reg->removeLink(ci.component_name);
+          c_em_reg->removeLink(ci.component_name);
         }
       }
     }
@@ -154,7 +154,7 @@ void startInterface_0()
         cat_pipes[pi.pipe_type].push_back(pi);
       }
       
-      c_emr_reg->setPipes(cat_pipes);
+      c_em_reg->setPipes(cat_pipes);
     }
     else
     {

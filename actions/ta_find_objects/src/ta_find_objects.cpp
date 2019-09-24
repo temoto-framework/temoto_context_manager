@@ -27,17 +27,22 @@
 #include "geometry_msgs/PoseStamped.h"
 
 /* 
- * ACTION IMPLEMENTATION of TaTrackArtag 
+ * ACTION IMPLEMENTATION of TaFindObjects 
  */
-class TaTrackArtag : public temoto_nlp::BaseTask
+class TaFindObjects : public temoto_nlp::BaseTask
 {
 public:
 
 /* REQUIRED BY TEMOTO */
-TaTrackArtag()
+TaFindObjects()
 {
   // ---> YOUR CONSTRUCTION ROUTINES HERE <--- //
-  TEMOTO_INFO("TaTrackArtag constructed");
+  TEMOTO_INFO("TaFindObjects constructed");
+  artag_item_map_[0] = "coffee_mug";
+  artag_item_map_[1] = "tv_remote";
+  artag_item_map_[2] = "chair";
+  artag_item_map_[3] = "scout_1";
+  artag_item_map_[4] = "scout_2";
 }
     
 /* REQUIRED BY TEMOTO */
@@ -61,15 +66,17 @@ std::vector<temoto_nlp::Subject> getSolution()
   return output_subjects;
 }
 
-~TaTrackArtag()
+~TaFindObjects()
 {
-  TEMOTO_INFO("TaTrackArtag destructed");
+  TEMOTO_INFO("TaFindObjects destructed");
 }
 
 /********************* END OF REQUIRED PUBLIC INTERFACE *********************/
 
 
 private:
+
+std::map<int, std::string> artag_item_map_;
 
 ros::NodeHandle nh_;
 ros::Subscriber artag_subscriber_;
@@ -79,7 +86,6 @@ temoto_context_manager::ObjectContainer tracked_object_;
 tf::TransformListener tf_listener;
 std::string object_name;
 std::shared_ptr<temoto_context_manager::EnvModelInterface> emr_interface_ptr;
-ros::Time last_measurement = ros::Time::now();
     
 /*
  * Interface 0 body
@@ -88,33 +94,18 @@ void startInterface_0()
 {
   /* EXTRACTION OF INPUT SUBJECTS */
   temoto_nlp::Subject what_0_in = temoto_nlp::getSubjectByType("what", input_subjects);
-  object_name = what_0_in.words_[0];
-
   temoto_nlp::Subject what_1_in = temoto_nlp::getSubjectByType("what", input_subjects);
   std::string  what_1_word_in = what_1_in.words_[0];
   std::string  what_1_data_0_in = boost::any_cast<std::string>(what_1_in.data_[0].value);
   temoto_core::TopicContainer topic_container = boost::any_cast<temoto_core::TopicContainer>(what_1_in.data_[1].value);
   emr_interface_ptr = 
     boost::any_cast<std::shared_ptr<temoto_context_manager::EnvModelInterface>>(what_1_in.data_[2].value);
-  tracked_object_ = emr_interface_ptr->getObject(object_name);
   tag_id_ = tracked_object_.tag_id;
   
-  TEMOTO_INFO_STREAM("Starting to track object: " << object_name);
+  TEMOTO_INFO_STREAM("Set up object finder for robot: " << temoto_core::common::getTemotoNamespace());
   std::string topic = topic_container.getOutputTopic("marker_data");
   TEMOTO_INFO_STREAM("Receiving information on topics:" << topic);
-  artag_subscriber_ = nh_.subscribe(topic, 1000, &TaTrackArtag::artagDataCb, this);
-
-  try
-  {
-  temoto_context_manager::MapContainer map = 
-    emr_interface_ptr->
-      getNearestParentMap(object_name);
-  TEMOTO_WARN_STREAM("Highest parent map: " << map.name);
-  }
-  catch(const std::exception& e)
-  {
-    ROS_ERROR_STREAM(e.what());
-  }
+  artag_subscriber_ = nh_.subscribe(topic, 1000, &TaFindObjects::artagDataCb, this);
 
   for (auto topic_pair : topic_container.getOutputTopics())
   {
@@ -125,43 +116,74 @@ void startInterface_0()
 void artagDataCb(ar_track_alvar_msgs::AlvarMarkers msg)
 {
 
-  // Look for the marker with the required tag id
-  if ((ros::Time::now() - last_measurement) > ros::Duration(0.5))
+  // Look for markers we know the corresponding objects to
+  for (auto& artag : msg.markers)
   {
-    last_measurement = ros::Time::now();
-    
-    for (auto& artag : msg.markers)
+    if (emr_interface_ptr->hasItem(artag_item_map_[artag.id])) 
     {
-      if (artag.id == tag_id_)
+      object_name = artag_item_map_[artag.id];
+      tracked_object_ = emr_interface_ptr->
+            getObject(object_name);
+      TEMOTO_INFO_STREAM("Updating pose of item " << object_name << " with ID " << artag.id);
+
+      // Update the pose of the object
+      // tracked_object_->pose.pose = artag.pose.pose;
+      artag.pose.header.frame_id = artag.header.frame_id;
+      geometry_msgs::PoseStamped newPose;
+      try
       {
-        TEMOTO_INFO_STREAM( "AR tag with id = " << tag_id_ << " found");
-
-        // Update the pose of the object
-        // tracked_object_->pose.pose = artag.pose.pose;
-        artag.pose.header.frame_id = artag.header.frame_id;
-        geometry_msgs::PoseStamped newPose;
-        try
-        {
-          tf_listener.transformPose(tracked_object_.parent, artag.pose, newPose);
-        }
-        catch(tf2::InvalidArgumentException& e )
-        {
-          TEMOTO_ERROR(e.what());
-        }
-        
-        newPose.header = artag.pose.header;
-        emr_interface_ptr->updatePose(object_name, newPose);
-
-        // Publish the tracked object
-        // tracked_object_publisher_.publish(tracked_object_);
-
-        // TODO: do something reasonable if multiple markers with the same tag id are present
+        tf_listener.transformPose(tracked_object_.parent, artag.pose, newPose);
       }
+      catch(tf2::InvalidArgumentException& e )
+      {
+        TEMOTO_ERROR(e.what());
+      }
+      
+      newPose.header = artag.pose.header;
+      emr_interface_ptr->updatePose(object_name, newPose);
+
+      // Publish the tracked object
+      // tracked_object_publisher_.publish(tracked_object_);
+
+      // TODO: do something reasonable if multiple markers with the same tag id are present
+    }
+    else
+    {
+      object_name = artag_item_map_[artag.id];
+
+      if (object_name.empty()) continue;
+
+      temoto_context_manager::ObjectContainer new_obj;
+      new_obj.name = object_name;
+      
+      temoto_context_manager::MapContainer parent_map = 
+            emr_interface_ptr->getNearestParentMap(
+                temoto_core::common::getTemotoNamespace());
+      new_obj.parent = parent_map.name;
+
+      tracked_object_ = new_obj;
+
+      artag.pose.header.frame_id = artag.header.frame_id;
+      geometry_msgs::PoseStamped newPose;
+      try
+      {
+        tf_listener.transformPose(tracked_object_.parent, artag.pose, newPose);
+      }
+      catch(tf2::InvalidArgumentException& e )
+      {
+        TEMOTO_ERROR(e.what());
+      }
+      temoto_context_manager::ItemContainer ic;
+      ic.maintainer = temoto_core::common::getTemotoNamespace();
+      ic.serialized_container = temoto_core::serializeROSmsg(tracked_object_);
+      newPose.header = artag.pose.header;
+      tracked_object_.pose = newPose;
+      emr_interface_ptr->updateEmr(ic);
     }
   }
 }
 
-}; // TaTrackArtag class
+}; // TaFindObjects class
 
 /* REQUIRED BY CLASS LOADER */
-CLASS_LOADER_REGISTER_CLASS(TaTrackArtag, temoto_nlp::BaseTask);
+CLASS_LOADER_REGISTER_CLASS(TaFindObjects, temoto_nlp::BaseTask);

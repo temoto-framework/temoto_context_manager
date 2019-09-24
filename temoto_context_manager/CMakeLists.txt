@@ -29,6 +29,7 @@ add_message_files(FILES
   MapContainer.msg
   ItemContainer.msg
   ComponentContainer.msg
+  RobotContainer.msg
 )
 
 add_service_files(
@@ -37,6 +38,7 @@ add_service_files(
   TrackObject.srv
   UpdateEmr.srv
   GetEMRItem.srv
+  GetEMRVector.srv
 )
 
 generate_messages(
@@ -80,8 +82,4 @@ target_link_libraries(temoto_context_manager
   yaml-cpp
   temoto_nlp_components
   temoto_core_components
-)
-add_library(lib_temoto_emr
-  src/emr_ros_interface.cpp
-  src/env_model_repository.cpp
 )

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(ta_track_artag)
+project(ta_find_objects)
 
 # use c++11 standard
 add_compile_options(-std=c++11)

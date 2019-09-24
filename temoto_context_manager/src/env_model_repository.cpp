@@ -66,16 +66,11 @@ void Item::addChild(std::shared_ptr<Item> child)
  */
 void Item::setParent(std::shared_ptr<Item> parent)
 {
-  //   TEMOTO_DEBUG("Attempting to add " << parent->name.c_str() << " as parent to " << name);
   // Make sure the item does not already have a parent
   if (parent_.expired()) 
   {
     parent_ = parent;
   }
-  else
-  {
-    // TEMOTO_ERROR("Item already has a parent.")
-  } 
 }
 
 } // namespace emr
