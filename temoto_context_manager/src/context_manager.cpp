@@ -1,3 +1,21 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright 2019 TeMoto Telerobotics
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* Author: Robert Valner */
+
 #include "ros/package.h"
 #include "temoto_core/common/ros_serialization.h"
 #include "temoto_context_manager/context_manager.h"
@@ -15,9 +33,33 @@ ContextManager::ContextManager()
   , resource_manager_2_(srv_name::MANAGER_2, this)
   , tracked_objects_syncer_(srv_name::MANAGER, srv_name::SYNC_TRACKED_OBJECTS_TOPIC, &ContextManager::trackedObjectsSyncCb, this)
   , emr_syncer_(srv_name::MANAGER, srv_name::SYNC_OBJECTS_TOPIC, &ContextManager::emrSyncCb, this)
-  , action_engine_(this, false, ros::package::getPath(ROS_PACKAGE_NAME) + "/config/action_dst.yaml")
+  , action_engine_()
 {
+  /*
+   * Set up the action engine
+   */ 
+  std::string action_uri_file_path = ros::package::getPath(ROS_PACKAGE_NAME) + "/config/action_dst.yaml";
+
+  // Open the action sources yaml file and get the paths to action libs
+  // TODO: check for typos and other existance problems
+  YAML::Node config = YAML::LoadFile(action_uri_file_path);
+  TEMOTO_INFO_STREAM("Indexing TeMoto actions");
+  for (YAML::const_iterator it = config.begin(); it != config.end(); ++it)
+  {
+    std::string package_name = (*it)["package_name"].as<std::string>();
+    std::string relative_path = (*it)["relative_path"].as<std::string>();
+    std::string full_path = ros::package::getPath(package_name) + "/" + relative_path;
+    action_engine_.addActionsPath(full_path);
+  }
+
+  // Start the Action Engine
+  action_engine_.start();
+
+  /*
+   * Initialize the Environment Model Repository interface
+   */
   emr_interface = std::make_shared<emr_ros_interface::EmrRosInterface>(env_model_repository_, temoto_core::common::getTemotoNamespace());
+  
   /*
    * Start the servers
    */
@@ -421,58 +463,37 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     TEMOTO_DEBUG_STREAM("Using " << selected_pipe << " based tracking");
 
     /*
-     * Action related stuff up ahead: A semantic frame is manually created. Based on that SF
-     * a SF tree is created, given that an action implementation, that corresponds to the
-     * manually created SF, exists. The tracker action is invoked  and it continues
-     * running in the background until its ordered to stop.
+     * Action related stuff up ahead: An UMRF is manually created, that corresponds an Action.
+     * The tracker action is invoked  and it continues to run in the background until its ordered to stop.
      */
 
-    std::string action = "track";
-    temoto_nlp::Subjects subjects;
+    Umrf track_object_umrf;
+    track_object_umrf.setName("TaTrackCmObject");
+    track_object_umrf.setSuffix("0");
+    track_object_umrf.setEffect("synchronous");
 
-    // Subject that will contain the name of the tracked object.
-    // Necessary when the tracker has to be stopped
-    temoto_nlp::Subject sub_0("what", req.object_name);
+    ActionParameters ap;
+    ap.setParameter("tracked_object::name", "string", boost::any_cast<std::string>(req.object_name));
+    ap.setParameter("tracked_object::output_topic", "string", boost::any_cast<std::string>(tracked_object_topic));
+    ap.setParameter("pipe::name", "string", boost::any_cast<std::string>(selected_pipe));
+    ap.setParameter("pipe::topic", "temoto_core::TopicContainer", boost::any_cast<temoto_core::TopicContainer>(pipe_topics));
+    ap.setParameter("emr", "std::shared_ptr<EnvModelInterface>", boost::any_cast<std::shared_ptr<EnvModelInterface>>(emr_interface));
 
-    // Subject that will contain the data necessary for the specific tracker
-    temoto_nlp::Subject sub_1("what", selected_pipe);
+    track_object_umrf.setInputParameters(ap);
+    std::string umrf_graph_name = item_name_no_space + "_graph";
+    action_engine_.executeUmrfGraph(umrf_graph_name, std::vector<Umrf>{track_object_umrf}, true);
 
-    // Topic where the action must publish the data about the tracked object
-    sub_1.addData("topic", tracked_object_topic);
-
-    // Pass the topic container so that the action can access the pipe
-    sub_1.addData("pointer", boost::any_cast<temoto_core::TopicContainer>(pipe_topics));
-
-    // Pass a pointer to EMR interface, which will be used to access EMR without ROS messaging overhead
-    sub_1.addData("pointer", boost::any_cast<std::shared_ptr<EnvModelInterface>>(emr_interface));
-
-    subjects.push_back(sub_0);
-    subjects.push_back(sub_1);
-
-    // Create a SF
-    std::vector<temoto_nlp::TaskDescriptor> task_descriptors;
-    task_descriptors.emplace_back(action, subjects);
-    task_descriptors[0].setActionStemmed(action);
-
-    // Create a sematic frame tree
-    temoto_nlp::TaskTree sft = temoto_nlp::SFTBuilder::build(task_descriptors);
-
-    // Get the root node of the tree
-    temoto_nlp::TaskTreeNode& root_node = sft.getRootNode();
-    sft.printTaskDescriptors(root_node);
-
-    // Execute the SFT
-    action_engine_.executeSFTThreaded(std::move(sft));
-
-    // Put the object into the list of tracked objects. This is used later
-    // for stopping the tracker
-    m_tracked_objects_local_[res.rmp.resource_id] = item_name_no_space;
-
+    /*
+     * Put the umrf graph name into the list of tracked objects. This is used later
+     * for stopping the tracker action
+     */ 
+    m_tracked_objects_local_[res.rmp.resource_id] = umrf_graph_name;
     res.object_topic = tracked_object_topic;
 
-    // Let context managers in other namespaces know, that this object is being tracked
+    /*
+     * Let context managers in other namespaces know, that this object is being tracked
+     */ 
     tracked_objects_syncer_.advertise(item_name_no_space);
-
   }
   catch (temoto_core::error::ErrorStack& error_stack)
   {
@@ -486,41 +507,22 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
 void ContextManager::startComponentToEmrLinker()
 {
   /*
-   * Action related stuff up ahead: A semantic frame is manually created. Based on that SF
-   * a SF tree is created, given that an action implementation, that corresponds to the
-   * manually created SF, exists. The tracker action is invoked  and it continues
-   * running in the background until its ordered to stop.
+   * Invoke an Action that continuously links Context Manager components
+   * with EMR objects
    */
   try
   {
-    std::string action = "start";
-    temoto_nlp::Subjects subjects;
+    Umrf track_object_umrf;
+    track_object_umrf.setName("TaEmrComponentLinker");
+    track_object_umrf.setSuffix("0");
+    track_object_umrf.setEffect("synchronous");
 
-    // Subject that will contain the name of the tracked object.
-    // Necessary when the tracker has to be stopped
-    temoto_nlp::Subject sub_0("what", "emr");
-    sub_0.addData("pointer", boost::any_cast<std::shared_ptr<EnvModelInterface>>(emr_interface));
+    ActionParameters ap;
+    ap.setParameter("emr", "std::shared_ptr<EnvModelInterface>", boost::any_cast<std::shared_ptr<EnvModelInterface>>(emr_interface));
+    ap.setParameter("emr-to-component registry", "ComponentToEmrRegistry*", boost::any_cast<ComponentToEmrRegistry*>(&component_to_emr_registry_));
 
-    // Subject that will contain the data necessary for the specific tracker
-    temoto_nlp::Subject sub_1("what", "emr-to-component registry");
-    sub_1.addData("pointer", boost::any_cast<ComponentToEmrRegistry*>(&component_to_emr_registry_));
-
-    subjects.push_back(sub_0);
-    subjects.push_back(sub_1);
-
-    // Create a SF
-    std::vector<temoto_nlp::TaskDescriptor> task_descriptors;
-    task_descriptors.emplace_back(action, subjects);
-    task_descriptors[0].setActionStemmed(action);
-
-    // Create a sematic frame tree
-    temoto_nlp::TaskTree sft = temoto_nlp::SFTBuilder::build(task_descriptors);
-
-    temoto_nlp::TaskTreeNode& root_node = sft.getRootNode();
-    sft.printTaskDescriptors(root_node);
-
-    // Execute the SFT
-    action_engine_.executeSFTThreaded(std::move(sft));
+    track_object_umrf.setInputParameters(ap);
+    action_engine_.executeUmrfGraph("emr_component_linker_graph", std::vector<Umrf>{track_object_umrf}, true);
   }
   catch (temoto_core::error::ErrorStack& error_stack)
   {
@@ -561,7 +563,7 @@ void ContextManager::unloadTrackObjectCb(TrackObject::Request& req,
                         << tracked_object << "'");
 
     // Stop tracking the object
-    action_engine_.stopTask("", tracked_object);
+    action_engine_.stopUmrfGraph(tracked_object);
 
     // Erase the object from the map of tracked objects
     m_tracked_objects_local_.erase(res.rmp.resource_id);

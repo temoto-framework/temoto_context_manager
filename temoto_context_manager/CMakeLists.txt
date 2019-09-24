@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(temoto_context_manager)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++1y -Wno-reorder -Wno-unused-function)
+add_compile_options(-std=c++1y)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -19,9 +19,9 @@ find_package(catkin REQUIRED COMPONENTS
   tf2
   tf2_ros
   tf2_geometry_msgs
-  temoto_component_manager
   temoto_core
-  temoto_nlp
+  temoto_action_engine
+  temoto_component_manager
 )
 
 add_message_files(FILES 
@@ -49,13 +49,13 @@ generate_messages(
   visualization_msgs
   diagnostic_msgs
   temoto_core
-  temoto_nlp
+  temoto_action_engine
 )
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES yaml-cpp
-  CATKIN_DEPENDS roscpp roslib temoto_component_manager temoto_core temoto_er_manager temoto_nlp
+  CATKIN_DEPENDS roscpp roslib temoto_component_manager temoto_core temoto_er_manager temoto_action_engine
 #  DEPENDS system_lib
 )
 
@@ -79,7 +79,4 @@ add_dependencies(temoto_context_manager
 )
 target_link_libraries(temoto_context_manager
   ${catkin_LIBRARIES}
-  yaml-cpp
-  temoto_nlp_components
-  temoto_core_components
 )

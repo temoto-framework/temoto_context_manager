@@ -1,3 +1,22 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright 2019 TeMoto Telerobotics
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* Author: Robert Valner */
+/* Author: Meelis Pihlap */
+
 #ifndef TEMOTO_CONTEXT_MANAGER__CONTEXT_MANAGER_INTERFACE_H
 #define TEMOTO_CONTEXT_MANAGER__CONTEXT_MANAGER_INTERFACE_H
 
@@ -6,20 +25,18 @@
 #include "temoto_core/common/console_colors.h"
 #include "temoto_core/common/topic_container.h"
 #include "temoto_core/common/ros_serialization.h"
-#include "temoto_nlp/base_task/base_task.h"
 #include "temoto_context_manager/context_manager_services.h"
 #include "temoto_context_manager/context_manager_containers.h"
 
 #include "std_msgs/Float32.h"
 #include "std_msgs/String.h"
-#include "human_msgs/Hands.h"
 
 #include <vector>
 
 namespace temoto_context_manager
 {
 
-template <class OwnerTask>
+template <class OwnerAction>
 class ContextManagerInterface : public temoto_core::BaseSubsystem
 {
 public:
@@ -29,11 +46,11 @@ public:
     class_name_ = __func__;
   }
 
-  void initialize(temoto_nlp::BaseTask* task)
+  void initialize(OwnerAction* action)
   {
-    initializeBase(task);
-    log_group_ = "interfaces." + task->getPackageName();
-    name_ = task->getName() + "/context_manager_interface";
+    initializeBase(action);
+    log_group_ = "interfaces." + action->getName();
+    name_ = action->getName() + "/context_manager_interface";
 
     // create resource manager
     resource_manager_ = std::unique_ptr<temoto_core::rmp::ResourceManager<ContextManagerInterface>>(new temoto_core::rmp::ResourceManager<ContextManagerInterface>(name_, this));
@@ -364,7 +381,7 @@ private:
   std::unique_ptr<temoto_core::rmp::ResourceManager<ContextManagerInterface>> resource_manager_;
 
   std::string name_; 
-  temoto_nlp::BaseTask* task_;
+  temoto_nlp::Baseaction* action_;
 
   ros::NodeHandle nh_;
   ros::ServiceClient update_EMR_client_;

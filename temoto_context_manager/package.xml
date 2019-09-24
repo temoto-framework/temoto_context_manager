@@ -13,18 +13,20 @@
   <build_depend>temoto_component_manager</build_depend>
   <build_depend>temoto_core</build_depend>
   <build_depend>temoto_er_manager</build_depend>
-  <build_depend>temoto_nlp</build_depend>
+  <build_depend>temoto_action_engine</build_depend>
+
   <build_export_depend>roscpp</build_export_depend>
   <build_export_depend>roslib</build_export_depend>
   <build_export_depend>temoto_component_manager</build_export_depend>
   <build_export_depend>temoto_core</build_export_depend>
   <build_export_depend>temoto_er_manager</build_export_depend>
-  <build_export_depend>temoto_nlp</build_export_depend>
+  <build_export_depend>temoto_action_engine</build_export_depend>
+  
   <exec_depend>roscpp</exec_depend>
   <exec_depend>roslib</exec_depend>
   <exec_depend>temoto_component_manager</exec_depend>
   <exec_depend>temoto_core</exec_depend>
   <exec_depend>temoto_er_manager</exec_depend>
-  <exec_depend>temoto_nlp</exec_depend>
+  <exec_depend>temoto_action_engine</exec_depend>
 
 </package>

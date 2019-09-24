@@ -1,3 +1,22 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright 2019 TeMoto Telerobotics
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* Author: Robert Valner */
+/* Author: Meelis Pihlap */
+
 #ifndef TEMOTO_CONTEXT_MANAGER__CONTEXT_MANAGER_H
 #define TEMOTO_CONTEXT_MANAGER__CONTEXT_MANAGER_H
 
@@ -13,7 +32,7 @@
 #include "temoto_context_manager/emr_ros_interface.h"
 #include "temoto_context_manager/emr_item_to_component_link.h"
 
-#include "temoto_nlp/task_manager.h"
+#include "temoto_action_engine/action_engine.h"
 #include "temoto_component_manager/component_manager_services.h"
 
 namespace temoto_context_manager
@@ -157,7 +176,7 @@ private:
 
   temoto_core::rmp::ConfigSynchronizer<ContextManager, std::string> tracked_objects_syncer_;
 
-  temoto_nlp::TaskManager action_engine_;
+  ActionEngine action_engine_;
 
   ComponentToEmrRegistry component_to_emr_registry_;
 

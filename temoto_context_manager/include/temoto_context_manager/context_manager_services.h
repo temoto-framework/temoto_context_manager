@@ -1,9 +1,26 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+ * Copyright 2019 TeMoto Telerobotics
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+/* Author: Robert Valner */
+
 #ifndef TEMOTO_CONTEXT_MANAGER__CONTEXT_MANAGER_SERVICES_H
 #define TEMOTO_CONTEXT_MANAGER__CONTEXT_MANAGER_SERVICES_H
 
 #include <string>
 #include "temoto_core/rmp/resource_manager_services.h"
-#include "temoto_context_manager/GetNumber.h"
 #include "temoto_context_manager/TrackObject.h"
 #include "temoto_context_manager/UpdateEmr.h"
 #include "temoto_context_manager/GetEMRItem.h"
@@ -28,18 +45,6 @@ namespace temoto_context_manager
   }
 }
 
-static bool operator==(const temoto_context_manager::GetNumber::Request& r1,
-                       const temoto_context_manager::GetNumber::Request& r2)
-{
-  return( r1.requested_int == r2.requested_int);
-}
-
-/**
- * @brief operator ==
- * @param r1
- * @param r2
- * @return
- */
 static bool operator==(const temoto_context_manager::TrackObject::Request& r1,
                        const temoto_context_manager::TrackObject::Request& r2)
 {
