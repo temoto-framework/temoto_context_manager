@@ -20,7 +20,7 @@
 #ifndef TEMOTO_CONTEXT_MANAGER__CONTEXT_MANAGER_INTERFACE_H
 #define TEMOTO_CONTEXT_MANAGER__CONTEXT_MANAGER_INTERFACE_H
 
-#include "temoto_core/rmp/resource_manager.h"
+#include "temoto_core/trr/resource_registrar.h"
 #include "temoto_core/common/temoto_id.h"
 #include "temoto_core/common/console_colors.h"
 #include "temoto_core/common/topic_container.h"
@@ -53,9 +53,9 @@ public:
     name_ = action->getName() + "/context_manager_interface";
 
     // create resource manager
-    resource_manager_ = std::unique_ptr<temoto_core::rmp::ResourceManager<ContextManagerInterface>>(new temoto_core::rmp::ResourceManager<ContextManagerInterface>(name_, this));
+    resource_registrar_ = std::unique_ptr<temoto_core::trr::ResourceRegistrar<ContextManagerInterface>>(new temoto_core::trr::ResourceRegistrar<ContextManagerInterface>(name_, this));
 
-    // ensure that resource_manager was created
+    // ensure that resource_registrar was created
     try
     {
       validateInterface();
@@ -66,7 +66,7 @@ public:
     }
 
     // register status callback function
-    resource_manager_->registerStatusCb(&ContextManagerInterface::statusInfoCb);
+    resource_registrar_->registerStatusCb(&ContextManagerInterface::statusInfoCb);
 
     // Add EMR service client
     update_EMR_client_ = nh_.serviceClient<UpdateEmr>(srv_name::SERVER_UPDATE_EMR);
@@ -148,7 +148,7 @@ public:
     // Call the server
     try
     {
-      resource_manager_->template call<GetNumber>( srv_name::MANAGER
+      resource_registrar_->template call<GetNumber>( srv_name::MANAGER
                                                            , srv_name::GET_NUMBER_SERVER
                                                            , srv_msg);
     }
@@ -179,7 +179,7 @@ public:
 
     try
     {
-      resource_manager_->template call<TrackObject>(srv_name::MANAGER,
+      resource_registrar_->template call<TrackObject>(srv_name::MANAGER,
                                                               srv_name::TRACK_OBJECT_SERVER,
                                                               track_object_msg);
 
@@ -307,7 +307,7 @@ public:
     try
     {
       // remove all connections, which were created via call() function
-      resource_manager_->unloadClients();
+      resource_registrar_->unloadClients();
     }
     catch (temoto_core::error::ErrorStack& error_stack)
     {
@@ -331,13 +331,13 @@ public:
     TEMOTO_DEBUG_STREAM(srv.request);
     // if any resource should fail, just unload it and try again
     // there is a chance that sensor manager gives us better sensor this time
-    if (srv.request.status_code == temoto_core::rmp::status_codes::FAILED)
+    if (srv.request.status_code == temoto_core::trr::status_codes::FAILED)
     {
       TEMOTO_WARN("Received a notification about a resource failure. Unloading and trying again");
 
       auto track_object_it = std::find_if(allocated_track_objects_.begin(), allocated_track_objects_.end(),
                                   [&](const TrackObject& sens) -> bool {
-                                    return sens.response.rmp.resource_id == srv.request.resource_id;
+                                    return sens.response.trr.resource_id == srv.request.resource_id;
                                   });
 
       // If the tracker was found then ...
@@ -347,11 +347,11 @@ public:
         {
           // ... unload it and ...
           TEMOTO_DEBUG("Unloading the track object");
-          resource_manager_->unloadClientResource(track_object_it->response.rmp.resource_id);
+          resource_registrar_->unloadClientResource(track_object_it->response.trr.resource_id);
 
           TEMOTO_DEBUG_STREAM("Trying to resume tracking the " << track_object_it->request.object_name);
 
-          resource_manager_->template call<TrackObject>(srv_name::MANAGER,
+          resource_registrar_->template call<TrackObject>(srv_name::MANAGER,
                                                                   srv_name::TRACK_OBJECT_SERVER,
                                                                   *track_object_it);
         }
@@ -378,7 +378,7 @@ public:
 
 private:
 
-  std::unique_ptr<temoto_core::rmp::ResourceManager<ContextManagerInterface>> resource_manager_;
+  std::unique_ptr<temoto_core::trr::ResourceRegistrar<ContextManagerInterface>> resource_registrar_;
 
   std::string name_; 
   temoto_nlp::Baseaction* action_;
@@ -396,7 +396,7 @@ private:
    */
   void validateInterface()
   {
-    if(!resource_manager_)
+    if(!resource_registrar_)
     {
       throw CREATE_ERROR(temoto_core::error::Code::UNINITIALIZED, "Interface is not initalized.");
     }

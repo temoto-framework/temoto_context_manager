@@ -29,8 +29,8 @@ namespace temoto_context_manager
 
 ContextManager::ContextManager()
   : temoto_core::BaseSubsystem("temoto_context_manager", temoto_core::error::Subsystem::CONTEXT_MANAGER, __func__)
-  , resource_manager_1_(srv_name::MANAGER, this)
-  , resource_manager_2_(srv_name::MANAGER_2, this)
+  , resource_registrar_1_(srv_name::MANAGER, this)
+  , resource_registrar_2_(srv_name::MANAGER_2, this)
   , tracked_objects_syncer_(srv_name::MANAGER, srv_name::SYNC_TRACKED_OBJECTS_TOPIC, &ContextManager::trackedObjectsSyncCb, this)
   , emr_syncer_(srv_name::MANAGER, srv_name::SYNC_OBJECTS_TOPIC, &ContextManager::emrSyncCb, this)
   , action_engine_()
@@ -65,13 +65,13 @@ ContextManager::ContextManager()
    */
 
   // Object tracking service
-  resource_manager_1_.addServer<TrackObject>(srv_name::TRACK_OBJECT_SERVER
+  resource_registrar_1_.addServer<TrackObject>(srv_name::TRACK_OBJECT_SERVER
                                             , &ContextManager::loadTrackObjectCb
                                             , &ContextManager::unloadTrackObjectCb);
 
   // Register callback for status info
-  resource_manager_1_.registerStatusCb(&ContextManager::statusCb1);
-  resource_manager_2_.registerStatusCb(&ContextManager::statusCb2);
+  resource_registrar_1_.registerStatusCb(&ContextManager::statusCb1);
+  resource_registrar_2_.registerStatusCb(&ContextManager::statusCb2);
 
   // "Update EMR" 
   TEMOTO_INFO("Starting the EMR update server");
@@ -104,14 +104,14 @@ void ContextManager::timerCallback(const ros::TimerEvent&)
  */
 void ContextManager::emrSyncCb(const temoto_core::ConfigSync& msg, const Items& payload)
 {
-  if (msg.action == temoto_core::rmp::sync_action::REQUEST_CONFIG)
+  if (msg.action == temoto_core::trr::sync_action::REQUEST_CONFIG)
   {
     advertiseEmr();
     return;
   }
 
   // Add or update objects
-  if (msg.action == temoto_core::rmp::sync_action::ADVERTISE_CONFIG)
+  if (msg.action == temoto_core::trr::sync_action::ADVERTISE_CONFIG)
   {
     TEMOTO_DEBUG("Received a payload.");
     updateEmr(payload, true);
@@ -123,7 +123,7 @@ void ContextManager::emrSyncCb(const temoto_core::ConfigSync& msg, const Items& 
  */
 void ContextManager::trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload)
 {
-  if (msg.action == temoto_core::rmp::sync_action::ADVERTISE_CONFIG)
+  if (msg.action == temoto_core::trr::sync_action::ADVERTISE_CONFIG)
   {
     TEMOTO_DEBUG_STREAM("Received a message, that '" << payload << "' is tracked by '"
                         << msg.temoto_namespace << "'.");
@@ -132,7 +132,7 @@ void ContextManager::trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, co
     m_tracked_objects_remote_[payload] = msg.temoto_namespace;
   }
   else
-  if (msg.action == temoto_core::rmp::sync_action::REMOVE_CONFIG)
+  if (msg.action == temoto_core::trr::sync_action::REMOVE_CONFIG)
   {
     TEMOTO_DEBUG_STREAM("Received a message, that '" << payload << "' is not tracked by '"
                         << msg.temoto_namespace << "' anymore.");
@@ -350,10 +350,10 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
     //   track_object_msg.request = req;
 
     //   // Send the request to the remote namespace
-    //   resource_manager_2_.template call<TrackObject>(srv_name::MANAGER,
+    //   resource_registrar_2_.template call<TrackObject>(srv_name::MANAGER,
     //                                                  srv_name::TRACK_OBJECT_SERVER,
     //                                                  track_object_msg,
-    //                                                  temoto_core::rmp::FailureBehavior::NONE,
+    //                                                  temoto_core::trr::FailureBehavior::NONE,
     //                                                  remote_temoto_namespace);
 
     //   res = track_object_msg.response;
@@ -408,13 +408,13 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
         }
 
         load_pipe_msg.request.pipe_category = pipe_category;
-        resource_manager_1_.call<temoto_component_manager::LoadPipe>(temoto_component_manager::srv_name::MANAGER_2,
+        resource_registrar_1_.call<temoto_component_manager::LoadPipe>(temoto_component_manager::srv_name::MANAGER_2,
                                                                      temoto_component_manager::srv_name::PIPE_SERVER,
                                                                      load_pipe_msg);
 
         selected_pipe = pipe_category;
         // detection_method_history_[pipe_category].adjustReliability();
-        active_detection_method_.first = load_pipe_msg.response.rmp.resource_id;
+        active_detection_method_.first = load_pipe_msg.response.trr.resource_id;
         active_detection_method_.second = pipe_category;
         break;
       }
@@ -487,7 +487,7 @@ void ContextManager::loadTrackObjectCb(TrackObject::Request& req, TrackObject::R
      * Put the umrf graph name into the list of tracked objects. This is used later
      * for stopping the tracker action
      */ 
-    m_tracked_objects_local_[res.rmp.resource_id] = umrf_graph_name;
+    m_tracked_objects_local_[res.trr.resource_id] = umrf_graph_name;
     res.object_topic = tracked_object_topic;
 
     /*
@@ -551,7 +551,7 @@ void ContextManager::unloadTrackObjectCb(TrackObject::Request& req,
     }
 
     // Get the name of the tracked object
-    std::string tracked_object = m_tracked_objects_local_[res.rmp.resource_id];
+    std::string tracked_object = m_tracked_objects_local_[res.trr.resource_id];
 
     if (tracked_object.empty())
     {
@@ -566,10 +566,10 @@ void ContextManager::unloadTrackObjectCb(TrackObject::Request& req,
     action_engine_.stopUmrfGraph(tracked_object);
 
     // Erase the object from the map of tracked objects
-    m_tracked_objects_local_.erase(res.rmp.resource_id);
+    m_tracked_objects_local_.erase(res.trr.resource_id);
 
     // Let context managers in other namespaces know, that this object is not tracked anymore
-    tracked_objects_syncer_.advertise(tracked_object, temoto_core::rmp::sync_action::REMOVE_CONFIG);
+    tracked_objects_syncer_.advertise(tracked_object, temoto_core::trr::sync_action::REMOVE_CONFIG);
   }
   catch (temoto_core::error::ErrorStack& error_stack)
   {

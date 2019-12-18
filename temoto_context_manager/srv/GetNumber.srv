@@ -1,11 +1,11 @@
 int32 requested_int
 
 # Remote Management Request
-temoto_core/RMPRequest rmp
+temoto_core/RMPRequest trr
 
 ---
 
 int32 responded_int
 
 # Remote Management Response
-temoto_core/RMPResponse rmp
+temoto_core/RMPResponse trr

@@ -2,7 +2,7 @@
 string item_name
 
 # RMP
-temoto_core/RMPRequest rmp
+temoto_core/RMPRequest trr
 
 ---
 
@@ -11,4 +11,4 @@ temoto_core/RMPRequest rmp
 string item_topic
 
 # RMP
-temoto_core/RMPResponse rmp
+temoto_core/RMPResponse trr

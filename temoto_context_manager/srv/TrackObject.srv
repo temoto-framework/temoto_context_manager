@@ -4,7 +4,7 @@ string object_name
 bool use_only_local_resources
 
 # RMP
-temoto_core/RMPRequest rmp
+temoto_core/RMPRequest trr
 
 ---
 
@@ -17,4 +17,4 @@ temoto_context_manager/ObjectContainer object
 string object_topic
 
 # RMP
-temoto_core/RMPResponse rmp
+temoto_core/RMPResponse trr
