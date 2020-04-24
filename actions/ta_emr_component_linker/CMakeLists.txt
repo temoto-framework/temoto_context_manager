@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(ta_find_objects)
+project(ta_emr_component_linker)
 
 # use c++11 standard
 add_compile_options(-std=c++11)
@@ -10,10 +10,10 @@ find_package(catkin REQUIRED COMPONENTS
   class_loader
   roscpp
   rospy
-  std_msgs
+  temoto_action_engine
   temoto_core
-  temoto_nlp
   temoto_context_manager
+  temoto_component_manager
 )
 
 catkin_package()
@@ -38,7 +38,7 @@ set_target_properties(${PROJECT_NAME}
 )
 target_link_libraries(${PROJECT_NAME}
   ${class_loader_LIBRARIES}
-  temoto_core_components
+  ${catkin_LIBRARIES}
 )
 
 class_loader_hide_library_symbols(${PROJECT_NAME})

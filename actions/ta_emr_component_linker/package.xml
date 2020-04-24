@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>ta_emr_component_linker</name>
+  <version>0.0.0</version>
+  <description>The ta_emr_component_linker package</description>
+
+  <!-- Author tags are optional, multiple are allowed, one per tag -->
+  <!-- Authors do not have to be maintainers, but could be -->
+  <!-- Example: -->
+  <!-- <author email="jane.doe@example.com">Jane Doe</author> -->
+  
+  <maintainer email="todo@todo.todo">todo</maintainer>
+  <license>Apache 2.0</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>roscpp</depend>>
+  <depend>rospy</depend>
+  <depend>class_loader</depend>
+  <depend>temoto_action_engine</depend>
+  <depend>temoto_core</depend>
+  <depend>temoto_component_manager</depend>
+  <depend>temoto_context_manager</depend>
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+    <!-- Other tools can request additional information be placed here -->
+  </export>
+</package>

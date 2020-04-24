@@ -1,0 +1,13 @@
+{
+    "name": "TaEmrComponentLinker",
+    "package_name": "ta_emr_component_linker",
+    "effect": "synchronous",
+    "input_parameters": {
+        "emr-to-component registry": {
+            "pvf_type": "ComponentToEmrRegistry*"
+        },
+        "emr": {
+            "pvf_type": "std::shared_ptr<EnvModelInterface>"
+        }
+    }
+}

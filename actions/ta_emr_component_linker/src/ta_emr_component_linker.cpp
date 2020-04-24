@@ -13,84 +13,40 @@
  *  modified or which do not make sence at the first glance.
  *
  *  See TeMoto documentation & tutorials at: 
- *    https://utnuclearroboticspublic.github.io/temoto2
+ *    https://temoto-telerobotics.github.io
  *
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 /* REQUIRED BY TEMOTO */
-#include "temoto_nlp/base_task/base_task.h"    // The base task
-#include <class_loader/class_loader.h>  // Class loader include
+#include <class_loader/class_loader.hpp>
+#include "ta_emr_component_linker/temoto_action.h"
+#include "ta_emr_component_linker/macros.h"
 
 #include "temoto_component_manager/component_manager_services.h"
 #include "temoto_context_manager/emr_ros_interface.h"
 #include "temoto_context_manager/emr_item_to_component_link.h"
 
 /* 
- * ACTION IMPLEMENTATION of TaLinkComponentsEmr 
+ * ACTION IMPLEMENTATION of TaEmrComponentLinker 
  */
-class TaLinkComponentsEmr : public temoto_nlp::BaseTask
+class TaEmrComponentLinker : public TemotoAction
 {
 public:
 
-/* REQUIRED BY TEMOTO */
-TaLinkComponentsEmr()
+// Constructor. REQUIRED BY TEMOTO
+TaEmrComponentLinker()
 {
-  // ---> YOUR CONSTRUCTION ROUTINES HERE <--- //
-  TEMOTO_INFO("TaLinkComponentsEmr constructed");
-}
-    
-/* REQUIRED BY TEMOTO */
-void startTask(temoto_nlp::TaskInterface task_interface)
-{
-  input_subjects = task_interface.input_subjects_;
-  switch (task_interface.id_)
-  {
-        
-    // Interface 0
-    case 0:
-      startInterface_0();
-      break;
-
-  }
+  std::cout << __func__ << " constructed\n";
 }
 
-/* REQUIRED BY TEMOTO */
-std::vector<temoto_nlp::Subject> getSolution()
+// REQUIRED BY TEMOTO
+void executeTemotoAction()
 {
-  return output_subjects;
-}
-
-~TaLinkComponentsEmr()
-{
-  TEMOTO_INFO("TaLinkComponentsEmr destructed");
-}
-
-/********************* END OF REQUIRED PUBLIC INTERFACE *********************/
-
-
-private:
-
-ros::NodeHandle nh_;
-ros::ServiceClient list_components_client_;
-ros::ServiceClient list_pipes_client_;
-std::vector<temoto_component_manager::Component> component_info_msgs_;
-std::vector<temoto_component_manager::Pipe> pipe_info_msgs_;
-    
-/*
- * Interface 0 body
- */
-void startInterface_0()
-{
-  /* EXTRACTION OF INPUT SUBJECTS */
-  temoto_nlp::Subject what_0_in = temoto_nlp::getSubjectByType("what", input_subjects);
-  std::string  what_0_word_in = what_0_in.words_[0];
-  std::shared_ptr<temoto_context_manager::EnvModelInterface> eri = 
-    boost::any_cast<std::shared_ptr<temoto_context_manager::EnvModelInterface>>(what_0_in.data_[0].value);
-
-  temoto_nlp::Subject what_1_in = temoto_nlp::getSubjectByType("what", input_subjects);
-  std::string  what_1_word_in = what_1_in.words_[0];
-  temoto_context_manager::ComponentToEmrRegistry* c_em_reg = 
-    boost::any_cast<temoto_context_manager::ComponentToEmrRegistry*>(what_1_in.data_[0].value);
+  // Input parameters
+  temoto_context_manager::ComponentToEmrRegistry* c_em_reg =
+    GET_PARAMETER("emr-to-component registry", temoto_context_manager::ComponentToEmrRegistry*);
+  std::shared_ptr<temoto_context_manager::EnvModelInterface> emr_i = 
+    GET_PARAMETER("emr", std::shared_ptr<temoto_context_manager::EnvModelInterface>);
 
   // Initialize the list components service client
   list_components_client_ = nh_.serviceClient<temoto_component_manager::ListComponents>(
@@ -103,7 +59,7 @@ void startInterface_0()
   /*
    * Loop until this action is required to stop
    */ 
-  while(!stop_task_)
+  while(actionOk())
   {
     /*
      * Get the components
@@ -120,12 +76,12 @@ void startInterface_0()
       component_info_msgs_ = list_components_srvmsg.response.component_infos;
       for(const auto& ci : component_info_msgs_)
       {
-        if (eri->hasItem(ci.component_name) && !c_em_reg->hasLink(ci.component_name))
+        if (emr_i->hasItem(ci.component_name) && !c_em_reg->hasLink(ci.component_name))
         {
           TEMOTO_INFO_STREAM("Linking component: " << ci.component_name);
           c_em_reg->addLink(ci, ci.component_name);
         }
-        else if (!eri->hasItem(ci.component_name) && c_em_reg->hasLink(ci.component_name))
+        else if (!emr_i->hasItem(ci.component_name) && c_em_reg->hasLink(ci.component_name))
         {
           TEMOTO_INFO_STREAM("Un-linking component: " << ci.component_name);
           c_em_reg->removeLink(ci.component_name);
@@ -153,7 +109,6 @@ void startInterface_0()
         TEMOTO_DEBUG_STREAM("Got pipe: " << pi.pipe_type);
         cat_pipes[pi.pipe_type].push_back(pi);
       }
-      
       c_em_reg->setPipes(cat_pipes);
     }
     else
@@ -161,12 +116,24 @@ void startInterface_0()
       TEMOTO_WARN_STREAM("Failed to call the Component Manager service: " 
         << temoto_component_manager::srv_name::LIST_PIPES_SERVER);
     }
-    
     ros::Duration(10).sleep();
   }
 }
 
-}; // TaLinkComponentsEmr class
+// Destructor
+~TaEmrComponentLinker()
+{
+  TEMOTO_INFO("Action instance destructed");
+}
+
+private:
+  ros::NodeHandle nh_;
+  ros::ServiceClient list_components_client_;
+  ros::ServiceClient list_pipes_client_;
+  std::vector<temoto_component_manager::Component> component_info_msgs_;
+  std::vector<temoto_component_manager::Pipe> pipe_info_msgs_;
+
+}; // TaEmrComponentLinker class
 
 /* REQUIRED BY CLASS LOADER */
-CLASS_LOADER_REGISTER_CLASS(TaLinkComponentsEmr, temoto_nlp::BaseTask);
+CLASS_LOADER_REGISTER_CLASS(TaEmrComponentLinker, ActionBase);
