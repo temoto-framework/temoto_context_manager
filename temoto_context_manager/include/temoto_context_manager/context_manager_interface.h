@@ -351,8 +351,6 @@ private:
   std::unique_ptr<temoto_core::trr::ResourceRegistrar<ContextManagerInterface>> resource_registrar_;
 
   std::string name_; 
-  temoto_nlp::Baseaction* action_;
-
   ros::NodeHandle nh_;
   ros::ServiceClient update_EMR_client_;
   ros::ServiceClient get_emr_item_client_;
