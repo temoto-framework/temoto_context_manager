@@ -130,36 +130,6 @@ public:
     
   }
 
-  int getNumber(const int number)
-  {
-    try
-    {
-      validateInterface();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
-    // Create a GetNumber service message
-    GetNumber srv_msg;
-    srv_msg.request.requested_int = number;
-
-    // Call the server
-    try
-    {
-      resource_registrar_->template call<GetNumber>( srv_name::MANAGER
-                                                           , srv_name::GET_NUMBER_SERVER
-                                                           , srv_msg);
-    }
-    catch(temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
-    return srv_msg.response.responded_int;
-  }
-
   std::string trackObject(std::string object_name, bool use_only_local_resources = false)
   {
     // Validate the interface

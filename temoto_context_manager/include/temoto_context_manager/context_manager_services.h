@@ -33,7 +33,6 @@ namespace temoto_context_manager
     const std::string MANAGER = "temoto_context_manager";
     const std::string SYNC_OBJECTS_TOPIC = "/temoto_context_manager/"+MANAGER+"/sync_objects";
     const std::string SYNC_TRACKED_OBJECTS_TOPIC= "/temoto_context_manager/"+MANAGER+"/sync_tracked_objects";
-    const std::string GET_NUMBER_SERVER = "get_number";
     const std::string TRACK_OBJECT_SERVER = "track_objects";
 
     const std::string MANAGER_2 = "temoto_context_manager_2";
