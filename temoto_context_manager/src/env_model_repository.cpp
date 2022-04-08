@@ -14,8 +14,6 @@
  * limitations under the License.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* Author: Meelis Pihlap */
-
 #include <iostream>
 #include <map>
 #include <memory>

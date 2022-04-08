@@ -14,26 +14,16 @@
  * limitations under the License.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* Author: Robert Valner */
-/* Author: Meelis Pihlap */
-
 #ifndef TEMOTO_CONTEXT_MANAGER__CONTEXT_MANAGER_H
 #define TEMOTO_CONTEXT_MANAGER__CONTEXT_MANAGER_H
-
-#include "temoto_core/common/base_subsystem.h"
-#include "temoto_core/common/temoto_id.h"
-#include "temoto_core/common/reliability.h"
-#include "temoto_core/trr/resource_registrar.h"
-#include "temoto_core/trr/config_synchronizer.h"
 
 #include "temoto_context_manager/context_manager_services.h"
 #include "temoto_context_manager/context_manager_containers.h"
 #include "temoto_context_manager/env_model_interface.h"
 #include "temoto_context_manager/emr_ros_interface.h"
-#include "temoto_context_manager/emr_item_to_component_link.h"
-
-#include "temoto_action_engine/action_engine.h"
-#include "temoto_component_manager/component_manager_services.h"
+#include "temoto_core/trr/config_synchronizer.h"
+#include "temoto_core/common/base_subsystem.h" // TODO: deprecated stuff, get rid of it asap
+#include "rr/ros1_resource_registrar.h"
 
 namespace temoto_context_manager
 {
@@ -43,16 +33,7 @@ class ContextManager : public temoto_core::BaseSubsystem
 public:
   ContextManager();
 
-  const std::string& getName() const
-  {
-    return subsystem_name_;
-  }
-
 private:
-
-  void loadTrackObjectCb(TrackObject::Request& req, TrackObject::Response& res);
-
-  void unloadTrackObjectCb(TrackObject::Request& req, TrackObject::Response& res);
 
   void emrSyncCb(const temoto_core::ConfigSync& msg, const Items& payload);
   
@@ -61,8 +42,6 @@ private:
   bool getEmrItemCb(GetEMRItem::Request& req, GetEMRItem::Response& res);
 
   bool getEmrVectorCb(GetEMRVector::Request& req, GetEMRVector::Response& res);
-
-  void trackedObjectsSyncCb(const temoto_core::ConfigSync& msg, const std::string& payload);
 
   /**
    * @brief Get node as nodecontainer from EMR
@@ -74,6 +53,7 @@ private:
    */
   template <class Container> 
   bool getEmrItemHelper(const std::string& name, std::string type, ItemContainer& container);
+
   /**
    * @brief Get an item from EMR 
    * 
@@ -84,6 +64,7 @@ private:
    * @return false 
    */
   bool getEmrItem(const std::string& name, std::string type, ItemContainer& container);
+
   /**
    * @brief Update the EMR structure with new information
    * 
@@ -99,55 +80,10 @@ private:
    */
   void advertiseEmr();
 
-  ObjectPtr findObject(std::string object_name);
-
-  void statusCb1(temoto_core::ResourceStatus& srv);
-
-  void statusCb2(temoto_core::ResourceStatus& srv);
-
-  void addDetectionMethod(std::string detection_method);
-
-  void addDetectionMethods(std::vector<std::string> detection_methods);
-
-  std::vector<std::string> getOrderedDetectionMethods();
-
-  std::vector<std::string> getItemDetectionMethods(const std::string& name);
-
   template <class Container>
   std::string parseContainerType();
 
-  /**
-   * @brief Invokes an action that tries to find connections between component manager components
-   * and EMR items
-   */
-  void startComponentToEmrLinker();
-
-  /**
-   * @brief Tries to retrieve the required parameters of pipe segments 
-   * 
-   * @param pipe_info_msg 
-   * @param load_pipe_msg 
-   * @param pipe_category 
-   * @param requested_emr_item_name 
-   * @return true no parameters were required or all parameters were specified
-   * @return false if at least one parameter was left unspecified
-   */
-  bool getParameterSpecifications( const temoto_component_manager::Pipe& pipe_info_msg
-                                 , temoto_component_manager::LoadPipe& load_pipe_msg
-                                 , const std::string& pipe_category
-                                 , const std::string& requested_emr_item_name);
-
   void timerCallback(const ros::TimerEvent&);
-
-  // Resource manager for handling servers and clients
-  temoto_core::trr::ResourceRegistrar<ContextManager> resource_registrar_1_;
-
-  /*
-   * Resource manager for handling servers and clients.
-   * TODO: The second manager is used for making RMP calls within the same manager. If the same
-   * resouce manager is used for calling servers managed by the same manager, the calls will lock
-   */
-  temoto_core::trr::ResourceRegistrar<ContextManager> resource_registrar_2_;
 
   ros::NodeHandle nh_;
 
@@ -159,37 +95,26 @@ private:
 
   ObjectPtrs objects_;
 
-  std::map<int, std::string> m_tracked_objects_local_;
-
-  std::map<std::string, std::string> m_tracked_objects_remote_;
-
   emr::EnvironmentModelRepository env_model_repository_;
 
   std::shared_ptr<EnvModelInterface> emr_interface; 
 
   ros::Timer emr_sync_timer;
 
+  // TODO: remove. its currently here so that rr_core lib would get linked to
+  // the context manager exec. otherwise the log macros dont work
+  temoto_resource_registrar::ResourceRegistrarRos1 resource_registrar_;
 
   // Configuration syncer that manages external resource descriptions and synchronizes them
   // between all other (context) managers
   temoto_core::trr::ConfigSynchronizer<ContextManager, Items> emr_syncer_;
 
-  temoto_core::trr::ConfigSynchronizer<ContextManager, std::string> tracked_objects_syncer_;
-
-  ActionEngine action_engine_;
-
-  ComponentToEmrRegistry component_to_emr_registry_;
-
-  std::map<std::string, temoto_core::Reliability> detection_method_history_;
-
-  std::pair<int, std::string> active_detection_method_;
-
-  std::map<std::string, std::string> parameter_map_ =
-  {
-    {"frame_id", emr_ros_interface::emr_containers::COMPONENT},
-    {"odom_frame_id", emr_ros_interface::emr_containers::ROBOT},
-    {"base_frame_id", emr_ros_interface::emr_containers::ROBOT}
-  };
+  // std::map<std::string, std::string> parameter_map_ =
+  // {
+  //   {"frame_id", emr_ros_interface::emr_containers::COMPONENT},
+  //   {"odom_frame_id", emr_ros_interface::emr_containers::ROBOT},
+  //   {"base_frame_id", emr_ros_interface::emr_containers::ROBOT}
+  // };
 };
 
 } // temoto_context_manager namespace

@@ -14,8 +14,6 @@
  * limitations under the License.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* Author: Meelis Pihlap */
-
 #include "temoto_context_manager/emr_ros_interface.h"
 #include <boost/algorithm/string.hpp>
 

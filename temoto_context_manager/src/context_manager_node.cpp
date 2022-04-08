@@ -14,25 +14,18 @@
  * limitations under the License.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* Author: Robert Valner */
-
 #include "ros/ros.h"
 #include "temoto_context_manager/context_manager.h"
-#include "std_msgs/String.h"
-
-#include <sstream>
+#include "temoto_resource_registrar/temoto_logging.h"
 
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "temoto_context_manager");
-    ros::NodeHandle n;
+  TEMOTO_LOG_ATTR.initialize("temoto_context_manager");
+  ros::init(argc, argv, TEMOTO_LOG_ATTR.getSubsystemName());
 
-    // Create instance of ContextManager
-    temoto_context_manager::ContextManager context_manager;
+  // Create instance of ContextManager
+  temoto_context_manager::ContextManager context_manager;
 
-    ros::Rate loop_rate(10);
-
-    ros::spin();
-
-    return 0;
+  ros::spin();
+  return 0;
 }

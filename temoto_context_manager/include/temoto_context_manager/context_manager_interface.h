@@ -14,60 +14,25 @@
  * limitations under the License.
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-/* Author: Robert Valner */
-/* Author: Meelis Pihlap */
-
 #ifndef TEMOTO_CONTEXT_MANAGER__CONTEXT_MANAGER_INTERFACE_H
 #define TEMOTO_CONTEXT_MANAGER__CONTEXT_MANAGER_INTERFACE_H
 
-#include "temoto_core/trr/resource_registrar.h"
-#include "temoto_core/common/temoto_id.h"
-#include "temoto_core/common/console_colors.h"
-#include "temoto_core/common/topic_container.h"
-#include "temoto_core/common/ros_serialization.h"
 #include "temoto_context_manager/context_manager_services.h"
 #include "temoto_context_manager/context_manager_containers.h"
-
-#include "std_msgs/Float32.h"
-#include "std_msgs/String.h"
-
+#include "temoto_core/common/ros_serialization.h"
+#include "temoto_resource_registrar/temoto_logging.h"
+#include "temoto_resource_registrar/temoto_error.h"
 #include <vector>
 
 namespace temoto_context_manager
 {
 
-template <class OwnerAction>
-class ContextManagerInterface : public temoto_core::BaseSubsystem
+class ContextManagerInterface
 {
 public:
 
   ContextManagerInterface()
   {
-    class_name_ = __func__;
-  }
-
-  void initialize(OwnerAction* action)
-  {
-    initializeBase(action);
-    log_group_ = "interfaces." + action->getName();
-    name_ = action->getName() + "/context_manager_interface";
-
-    // create resource manager
-    resource_registrar_ = std::unique_ptr<temoto_core::trr::ResourceRegistrar<ContextManagerInterface>>(new temoto_core::trr::ResourceRegistrar<ContextManagerInterface>(name_, this));
-
-    // ensure that resource_registrar was created
-    try
-    {
-      validateInterface();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
-    // register status callback function
-    resource_registrar_->registerStatusCb(&ContextManagerInterface::statusInfoCb);
-
     // Add EMR service client
     update_EMR_client_ = nh_.serviceClient<UpdateEmr>(srv_name::SERVER_UPDATE_EMR);
     get_emr_item_client_ = nh_.serviceClient<GetEMRItem>(srv_name::SERVER_GET_EMR_ITEM);
@@ -79,7 +44,7 @@ public:
     GetEMRVector srv_msg;
     if (!get_emr_vector_client_.call<GetEMRVector>(srv_msg)) 
     {
-      throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
+      throw TEMOTO_ERRSTACK("Failed to call the server: '" + srv_name::SERVER_GET_EMR_VECTOR + "'");
     }
     return srv_msg.response.items;
   }
@@ -96,7 +61,7 @@ public:
     Container container;
     if (name == "") 
     {
-      throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL , "The container is missing a name");
+      throw TEMOTO_ERRSTACK("The container is missing a name");
     }
     else
     {
@@ -112,55 +77,25 @@ public:
       }
       if (!get_emr_item_client_.call<GetEMRItem>(srv_msg)) 
       {
-        throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
+        throw TEMOTO_ERRSTACK("Failed to call the server: '" + srv_name::SERVER_GET_EMR_ITEM + "'");
       }
-      TEMOTO_INFO("Got a response! ");
+
+      TEMOTO_INFO_("Got a response! ");
       if (srv_msg.response.success) 
       {
         container = temoto_core::deserializeROSmsg<Container>(
                                   srv_msg.response.item.serialized_container);
-        TEMOTO_INFO("Got a response! ");
+        TEMOTO_INFO_("Got a response! ");
       }
       else
       {
-        TEMOTO_ERROR_STREAM("Invalid EMR type requested for item.");
+        TEMOTO_ERROR_STREAM_("Invalid EMR type requested for item.");
       }
     }
     return container;
     
   }
 
-  std::string trackObject(std::string object_name, bool use_only_local_resources = false)
-  {
-    // Validate the interface
-    try
-    {
-      validateInterface();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
-    // Start filling out the TrackObject message
-    TrackObject track_object_msg;
-    track_object_msg.request.object_name = object_name;
-    track_object_msg.request.use_only_local_resources = use_only_local_resources;
-
-    try
-    {
-      resource_registrar_->template call<TrackObject>(srv_name::MANAGER,
-                                                              srv_name::TRACK_OBJECT_SERVER,
-                                                              track_object_msg);
-
-      allocated_track_objects_.push_back(track_object_msg);
-      return track_object_msg.response.object_topic;
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-  }
   /**
    * @brief Add single container to EMR
    * 
@@ -174,6 +109,7 @@ public:
     containers.push_back(container);
     addToEmr(containers);
   }
+
   /**
    * @brief Add several containers to EMR
    * 
@@ -191,7 +127,7 @@ public:
     {
       if (container.name == "")
       {
-        throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL , "The container is missing a name");
+        throw TEMOTO_ERRSTACK("The container is missing a name");
       }
       else
       {
@@ -223,132 +159,44 @@ public:
     UpdateEmr update_EMR_srvmsg;
     update_EMR_srvmsg.request.items = item_containers;
 
-    TEMOTO_INFO_STREAM("Calling " << srv_name::SERVER_UPDATE_EMR << " server ...");
+    TEMOTO_INFO_STREAM_("Calling " << srv_name::SERVER_UPDATE_EMR << " server ...");
     if (!update_EMR_client_.call<UpdateEmr>(update_EMR_srvmsg)) 
     {
-      throw CREATE_ERROR(temoto_core::error::Code::SERVICE_REQ_FAIL, "Failed to call the server");
+      throw TEMOTO_ERRSTACK("Failed to call the server: '" + srv_name::SERVER_UPDATE_EMR + "'");
     }
 
-    TEMOTO_INFO_STREAM("Call to " << srv_name::SERVER_UPDATE_EMR << " was successful");
+    TEMOTO_INFO_STREAM_("Call to " << srv_name::SERVER_UPDATE_EMR << " was successful");
     for (auto item_container : update_EMR_srvmsg.response.failed_items)
     {
       if (item_container.type == emr_ros_interface::emr_containers::OBJECT) {
         auto container = temoto_core::deserializeROSmsg<ObjectContainer>
                                 (item_container.serialized_container);
-        TEMOTO_INFO_STREAM("Failed to add item: " << container.name << std::endl);
+        TEMOTO_INFO_STREAM_("Failed to add item: " << container.name << std::endl);
       }
       else if (item_container.type == emr_ros_interface::emr_containers::MAP)
       {
         auto container = temoto_core::deserializeROSmsg<ObjectContainer>
                                 (item_container.serialized_container);
-        TEMOTO_INFO_STREAM("Failed to add item: " << container.name << std::endl);
+        TEMOTO_INFO_STREAM_("Failed to add item: " << container.name << std::endl);
       }
       else if (item_container.type == emr_ros_interface::emr_containers::COMPONENT)
       {
         auto container = temoto_core::deserializeROSmsg<ComponentContainer>
                                 (item_container.serialized_container);
-        TEMOTO_INFO_STREAM("Failed to add item: " << container.name << std::endl);
+        TEMOTO_INFO_STREAM_("Failed to add item: " << container.name << std::endl);
       }
       else if (item_container.type == emr_ros_interface::emr_containers::ROBOT)
       {
         auto container = temoto_core::deserializeROSmsg<RobotContainer>
                                 (item_container.serialized_container);
-        TEMOTO_INFO_STREAM("Failed to add item: " << container.name << std::endl);
+        TEMOTO_INFO_STREAM_("Failed to add item: " << container.name << std::endl);
       }
     }
   }
-
-  /**
-   * @brief stopAllocatedServices
-   * @return
-   */
-  bool stopAllocatedServices()
-  {
-    // Validate the interface
-    try
-    {
-      validateInterface();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
-    try
-    {
-      // remove all connections, which were created via call() function
-      resource_registrar_->unloadClients();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-  }
-
-  void statusInfoCb(temoto_core::ResourceStatus& srv)
-  {
-    // Validate the interface
-    try
-    {
-      validateInterface();
-    }
-    catch (temoto_core::error::ErrorStack& error_stack)
-    {
-      throw FORWARD_ERROR(error_stack);
-    }
-
-    TEMOTO_DEBUG("Received status information");
-    TEMOTO_DEBUG_STREAM(srv.request);
-    // if any resource should fail, just unload it and try again
-    // there is a chance that sensor manager gives us better sensor this time
-    if (srv.request.status_code == temoto_core::trr::status_codes::FAILED)
-    {
-      TEMOTO_WARN("Received a notification about a resource failure. Unloading and trying again");
-
-      auto track_object_it = std::find_if(allocated_track_objects_.begin(), allocated_track_objects_.end(),
-                                  [&](const TrackObject& sens) -> bool {
-                                    return sens.response.trr.resource_id == srv.request.resource_id;
-                                  });
-
-      // If the tracker was found then ...
-      if (track_object_it != allocated_track_objects_.end())
-      {
-        try
-        {
-          // ... unload it and ...
-          TEMOTO_DEBUG("Unloading the track object");
-          resource_registrar_->unloadClientResource(track_object_it->response.trr.resource_id);
-
-          TEMOTO_DEBUG_STREAM("Trying to resume tracking the " << track_object_it->request.object_name);
-
-          resource_registrar_->template call<TrackObject>(srv_name::MANAGER,
-                                                                  srv_name::TRACK_OBJECT_SERVER,
-                                                                  *track_object_it);
-        }
-        catch(temoto_core::error::ErrorStack& error_stack)
-        {
-          throw FORWARD_ERROR(error_stack);
-        }
-      }
-
-      if (track_object_it != allocated_track_objects_.end())
-      {
-        throw CREATE_ERROR(temoto_core::error::Code::RESOURCE_NOT_FOUND, "Got resource_id that is not registered in this interface.");
-      }
-    }
-  }
-
 
   ~ContextManagerInterface(){}
 
-  const std::string& getName() const
-  {
-    return subsystem_name_;
-  }
-
 private:
-
-  std::unique_ptr<temoto_core::trr::ResourceRegistrar<ContextManagerInterface>> resource_registrar_;
 
   std::string name_; 
   ros::NodeHandle nh_;
@@ -356,19 +204,6 @@ private:
   ros::ServiceClient get_emr_item_client_;
   ros::ServiceClient get_emr_vector_client_;
 
-  std::vector<TrackObject> allocated_track_objects_;
-
-  /**
-   * @brief validateInterface()
-   * @param component_type
-   */
-  void validateInterface()
-  {
-    if(!resource_registrar_)
-    {
-      throw CREATE_ERROR(temoto_core::error::Code::UNINITIALIZED, "Interface is not initalized.");
-    }
-  }
 };
 
 } // namespace

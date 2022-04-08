@@ -20,8 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros
   tf2_geometry_msgs
   temoto_core
-  temoto_action_engine
-  temoto_component_manager
+  temoto_resource_registrar
 )
 
 add_message_files(FILES 
@@ -34,7 +33,6 @@ add_message_files(FILES
 
 add_service_files(
   FILES
-  TrackObject.srv
   UpdateEmr.srv
   GetEMRItem.srv
   GetEMRVector.srv
@@ -47,14 +45,13 @@ generate_messages(
   shape_msgs
   visualization_msgs
   diagnostic_msgs
-  temoto_core
-  temoto_action_engine
+  temoto_resource_registrar
 )
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES yaml-cpp
-  CATKIN_DEPENDS roscpp roslib temoto_component_manager temoto_core temoto_er_manager temoto_action_engine
+  CATKIN_DEPENDS roscpp roslib temoto_core temoto_resource_registrar
 #  DEPENDS system_lib
 )
 
@@ -69,7 +66,6 @@ add_executable(temoto_context_manager
   src/context_manager_containers.cpp
   src/env_model_repository.cpp
   src/emr_ros_interface.cpp
-  src/emr_item_to_component_link.cpp
 )
 
 add_dependencies(temoto_context_manager
