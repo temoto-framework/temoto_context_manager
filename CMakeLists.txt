@@ -75,3 +75,33 @@ add_dependencies(temoto_context_manager
 target_link_libraries(temoto_context_manager
   ${catkin_LIBRARIES}
 )
+
+#
+# Build the examples
+#
+
+# Setter example
+add_executable(emr_item_setter_example 
+  examples/set_emr_items.cpp
+)
+
+add_dependencies(emr_item_setter_example
+  ${catkin_EXPORTED_TARGETS}
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+)
+target_link_libraries(emr_item_setter_example
+  ${catkin_LIBRARIES}
+)
+
+# Visualizer example
+add_executable(emr_item_visualizer_example 
+  examples/visualize_emr_items.cpp
+)
+
+add_dependencies(emr_item_visualizer_example
+  ${catkin_EXPORTED_TARGETS}
+  ${${PROJECT_NAME}_EXPORTED_TARGETS}
+)
+target_link_libraries(emr_item_visualizer_example
+  ${catkin_LIBRARIES}
+)

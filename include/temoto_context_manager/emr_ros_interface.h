@@ -144,11 +144,13 @@ public:
   std::vector<ItemContainer> EmrToVector();
 
   EmrRosInterface(emr::EnvironmentModelRepository& emr, std::string identifier) : env_model_repository_(emr), identifier_(identifier) 
-{
-  // TODO: Move this to context manager
-  tf_timer_ = nh_.createTimer(ros::Duration(0.1), &EmrRosInterface::emrTfCallback, this);
-}
+  {
+    // TODO: Move this to context manager
+    tf_timer_ = nh_.createTimer(ros::Duration(0.1), &EmrRosInterface::emrTfCallback, this);
+  }
+
   void updatePose(const std::string& name, const geometry_msgs::PoseStamped& newPose);
+
   /**
    * @brief Helper function to handle templates
    * 
@@ -165,6 +167,7 @@ public:
     temp.pose = newPose;
     plptr->setPayload(temp);
   }
+
   /**
    * @brief Get the Container by name
    * 
@@ -179,6 +182,7 @@ public:
     // TODO: What if a null pointer is returned?
     return getRosPayloadPtr<Container>(name)->getPayload();
   }
+
   /**
    * @brief Get the Container without locking mutex
    * 
@@ -193,6 +197,7 @@ public:
   {
     return getRosPayloadPtr<Container>(name)->getPayload();
   }
+  
   /**
    * @brief Get RosPayload pointer
    * 

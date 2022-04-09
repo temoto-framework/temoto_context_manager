@@ -20,6 +20,7 @@
 #include "temoto_context_manager/context_manager_services.h"
 #include "temoto_context_manager/context_manager_containers.h"
 #include "temoto_core/common/ros_serialization.h"
+#include "temoto_core/common/tools.h"
 #include "temoto_resource_registrar/temoto_logging.h"
 #include "temoto_resource_registrar/temoto_error.h"
 #include <vector>
