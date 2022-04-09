@@ -207,5 +207,60 @@ private:
 
 };
 
+/**
+ * @brief Creates a visualization marker message out of basic parameters
+ * @return visualization_msgs::Marker 
+ */
+visualization_msgs::Marker createMarker( std::string name 
+, int type
+, float scale_x
+, float scale_y
+, float scale_z
+, float color_r
+, float color_g
+, float color_b)
+{
+  visualization_msgs::Marker viz_marker_msg;
+  viz_marker_msg.ns = name;
+  viz_marker_msg.id = 0;
+  viz_marker_msg.lifetime = ros::Duration();
+  viz_marker_msg.type = type;
+  viz_marker_msg.action = visualization_msgs::Marker::ADD;
+
+  viz_marker_msg.scale.x = scale_x;
+  viz_marker_msg.scale.y = scale_y;
+  viz_marker_msg.scale.z = scale_z;
+
+  viz_marker_msg.color.r = color_r;
+  viz_marker_msg.color.g = color_g;
+  viz_marker_msg.color.b = color_b;
+  viz_marker_msg.color.a = 1.0;
+
+  return viz_marker_msg;
+}
+
+/**
+ * @brief Creates a pose message
+ * @return geometry_msgs::Pose 
+ */
+geometry_msgs::Pose createPose( float p_x
+, float p_y
+, float p_z
+, float o_x
+, float o_y
+, float o_z
+, float o_w)
+{
+  geometry_msgs::Pose pose;
+  pose.position.x = p_x;
+  pose.position.y = p_y;
+  pose.position.z = p_z;
+  pose.orientation.x = o_x;
+  pose.orientation.y = o_y;
+  pose.orientation.z = o_z;
+  pose.orientation.w = o_w;
+  return pose;
+}
+
 } // namespace
 #endif

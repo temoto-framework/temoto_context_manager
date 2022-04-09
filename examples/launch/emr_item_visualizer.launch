@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- Run the Context Manager -->
+  <node name="temoto_context_manager" pkg="temoto_context_manager" type="temoto_context_manager" output="screen" />
+
+  <!-- Run the EMR item visualization marker publisher -->
+  <node name="emr_item_visualizer" pkg="temoto_context_manager" type="emr_item_visualizer_example" output="screen" />
+
+  <!-- Run RViz -->
+  <node type="rviz" name="rviz" pkg="rviz" args="-d $(find temoto_context_manager)/examples/launch/emr_item_config.rviz" />
+
+</launch>
