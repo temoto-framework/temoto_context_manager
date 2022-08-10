@@ -43,6 +43,8 @@ private:
 
   bool getEmrVectorCb(GetEMRVector::Request& req, GetEMRVector::Response& res);
 
+  bool removeItemCb(RemoveItem::Request& req, RemoveItem::Response& res);
+
   /**
    * @brief Get node as nodecontainer from EMR
    * 
@@ -92,6 +94,8 @@ private:
   ros::ServiceServer get_emr_item_server_;
 
   ros::ServiceServer get_emr_vector_server_;
+
+  ros::ServiceServer remove_item_server_;
 
   ObjectPtrs objects_;
 

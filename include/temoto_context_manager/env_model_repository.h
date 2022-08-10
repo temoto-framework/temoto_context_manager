@@ -66,6 +66,9 @@ private:
 public:
 
   void addChild(std::shared_ptr<Item> child);
+
+  void removeChild(std::shared_ptr<Item> child);
+  
   /**
    * @brief Set the Parent pointer
    * 
@@ -135,7 +138,32 @@ public:
   }
   void removeItem(const std::string name)
   {
+    // std::cout << " \n \n =========== Remove Item From env_model ============ \n \n" << std::endl;
+    
+    std::vector<std::shared_ptr<emr::Item>> root_items = getRootItems();
+    // std::cout << " root_items size = " << root_items.size() << std::endl;
+    
+    // root_items[0]->removeChild(items[name]);
+
+    //deletes the marker 
+
+    std::cout <<  items[name]->getName() << std::endl;
+
+    for (const auto& item : root_items)
+    {
+      std::cout <<  item->getName() << std::endl;
+      item->removeChild(items[name]);
+
+      for (const auto& item2 : item->getChildren())
+      {
+        item2->removeChild(items[name]);
+      }
+      
+    }
+
+    // Deteles the tf 
     items.erase(name);
+    
   }
   /**
    * @brief Get the root items of the structure

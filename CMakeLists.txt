@@ -36,6 +36,7 @@ add_service_files(
   UpdateEmr.srv
   GetEMRItem.srv
   GetEMRVector.srv
+  RemoveItem.srv
 )
 
 generate_messages(

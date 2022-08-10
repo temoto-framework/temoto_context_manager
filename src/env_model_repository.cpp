@@ -38,6 +38,8 @@ void EnvironmentModelRepository::addItem(const std::string& name, const std::str
     items[name] = std::make_shared<Item>(Item(payload));
     // Add the new item as a child to the parent, creating the child -> parent link in the process
     items[parent]->addChild(items[name]);
+        
+    
   }
 }
 
@@ -62,7 +64,7 @@ std::vector<std::shared_ptr<Item>> EnvironmentModelRepository::getRootItems() co
     {
       root_items.push_back(pair.second);
     }
-  }
+  }  
   return root_items;
 }
 /**
@@ -75,6 +77,25 @@ void Item::addChild(std::shared_ptr<Item> child)
   children_.push_back(child);
   child->setParent(shared_from_this());
 }
+
+void Item::removeChild(std::shared_ptr<Item> item)
+{
+
+  // std::cout << "\033[0;33;42m =========== Remove Child ============ \033[0m" << std::endl;
+  
+  // std::cout << "\033[0;35m" << children_.size() << "\033[0m" << std::endl;
+  
+  for (auto it = children_.begin(); it != children_.end(); it++) {
+    if (*it == item) {
+        children_.erase(it);
+    }
+    
+  }
+}
+
+
+
+
 /**
  * @brief Set parent of item
  * 

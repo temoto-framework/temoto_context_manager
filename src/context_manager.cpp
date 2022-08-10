@@ -40,6 +40,7 @@ ContextManager::ContextManager()
   update_emr_server_ = nh_.advertiseService(srv_name::SERVER_UPDATE_EMR, &ContextManager::updateEmrCb, this);
   get_emr_item_server_ = nh_.advertiseService(srv_name::SERVER_GET_EMR_ITEM, &ContextManager::getEmrItemCb, this);
   get_emr_vector_server_ = nh_.advertiseService(srv_name::SERVER_GET_EMR_VECTOR, &ContextManager::getEmrVectorCb, this);
+  remove_item_server_ = nh_.advertiseService(srv_name::SERVER_REMOVE_ITEM, &ContextManager::removeItemCb, this);
   
   // Request remote EMR configurations
   emr_syncer_.requestRemoteConfigs();
@@ -202,6 +203,13 @@ bool ContextManager::getEmrItemCb(GetEMRItem::Request& req, GetEMRItem::Response
   res.success = ContextManager::getEmrItem(req.name, req.type, nc);
   res.item = nc;
   TEMOTO_WARN_STREAM_("t1 " << res.success);
+  return true;
+}
+
+bool ContextManager::removeItemCb(RemoveItem::Request& req, RemoveItem::Response& res)
+{
+  TEMOTO_INFO_STREAM_("Received a request to remove item: " << req.name << " from the EMR." << std::endl);    
+  emr_interface->removeItem(req.name);
   return true;
 }
 

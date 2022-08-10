@@ -21,6 +21,7 @@
 #include "temoto_context_manager/UpdateEmr.h"
 #include "temoto_context_manager/GetEMRItem.h"
 #include "temoto_context_manager/GetEMRVector.h"
+#include "temoto_context_manager/RemoveItem.h"
 
 namespace temoto_context_manager
 {
@@ -32,6 +33,7 @@ namespace temoto_context_manager
     const std::string SERVER_UPDATE_EMR = MANAGER + "/update_emr";
     const std::string SERVER_GET_EMR_ITEM = "get_emr_item";
     const std::string SERVER_GET_EMR_VECTOR = "get_emr_vector";
+    const std::string SERVER_REMOVE_ITEM = "remove_item";
   }
 }
 
