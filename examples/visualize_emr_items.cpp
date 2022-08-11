@@ -31,8 +31,7 @@ int main(int argc, char** argv)
     /*
      * Get the vector of ItemContainers and parse the ItemContainer to specific containers
      */
-    temoto_context_manager::Items item_containers = cmi_.getEmrVector();
-    
+    temoto_context_manager::Items item_containers = cmi_.getEmrVector();    
     if (!item_containers.empty())
     {
       ROS_INFO("Publishing EMR items as visualization markers");

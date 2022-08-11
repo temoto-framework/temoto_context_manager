@@ -104,7 +104,6 @@ void Item::addChild(std::shared_ptr<Item> child)
   children_.push_back(child);
   child->setParent(shared_from_this());
 }
-
 /**
  * @brief Set parent of item
  * 

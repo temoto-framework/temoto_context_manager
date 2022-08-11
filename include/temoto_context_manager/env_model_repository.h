@@ -111,10 +111,7 @@ public:
    * to the parent is expired.
    * 
    * @return true 
-   * @return false [name] (const std::shared_ptr<Item>& item)
-        {
-          return (item->getName() == name);
-        })
+   * @return false
    */
   bool isRoot() {return parent_.expired();}
   /**
