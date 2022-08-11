@@ -33,8 +33,8 @@ int main(int argc, char** argv)
      */
     temoto_context_manager::Items item_containers = cmi_.getEmrVector();
     
-    // ROS_INFO("Size of EMR items in visualization markers" );
-    // std::cout << item_containers.size() << std::endl;
+    ROS_INFO("Size of EMR items in visualization markers" );
+    std::cout << item_containers.size() << std::endl;
     
 
     if (!item_containers.empty())
@@ -64,6 +64,7 @@ int main(int argc, char** argv)
       viz_marker_msg.header = oc.pose.header;
       viz_marker_msg.header.stamp = ros::Time::now();
       viz_marker_msg.pose = oc.pose.pose;
+      viz_marker_msg.lifetime = ros::Duration(3.0);
       viz_marker_publisher_.publish(viz_marker_msg);
     }
     

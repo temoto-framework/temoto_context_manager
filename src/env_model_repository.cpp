@@ -78,20 +78,20 @@ void Item::addChild(std::shared_ptr<Item> child)
   child->setParent(shared_from_this());
 }
 
-void Item::removeChild(std::shared_ptr<Item> item)
-{
+// void Item::removeChild(std::shared_ptr<Item> item)
+// {
 
-  // std::cout << "\033[0;33;42m =========== Remove Child ============ \033[0m" << std::endl;
+//   // std::cout << "\033[0;33;42m =========== Remove Child ============ \033[0m" << std::endl;
   
-  // std::cout << "\033[0;35m" << children_.size() << "\033[0m" << std::endl;
+//   // std::cout << "\033[0;35m" << children_.size() << "\033[0m" << std::endl;
   
-  for (auto it = children_.begin(); it != children_.end(); it++) {
-    if (*it == item) {
-        children_.erase(it);
-    }
+//   for (auto it = children_.begin(); it != children_.end(); it++) {
+//     if (*it == item) {
+//         children_.erase(it);
+//     }
     
-  }
-}
+//   }
+// }
 
 
 

@@ -252,7 +252,7 @@ void EmrRosInterface::EmrToVectorHelper(const emr::Item& currentItem, std::vecto
 
   std::vector<std::shared_ptr<emr::Item>> children = currentItem.getChildren();
 
-  // std::cout << "\033[0;35m" << children.size() << "\033[0m" << std::endl;
+  std::cout << "\033[0;35m" << children.size() << "\033[0m" << std::endl;
 
   for (uint32_t i = 0; i < children.size(); i++)
   {
