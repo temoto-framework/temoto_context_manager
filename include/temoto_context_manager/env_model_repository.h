@@ -66,9 +66,6 @@ private:
 public:
 
   void addChild(std::shared_ptr<Item> child);
-
-  // void removeChild(std::shared_ptr<Item> child);
-  
   /**
    * @brief Set the Parent pointer
    * 
@@ -145,82 +142,6 @@ public:
     std::lock_guard<std::mutex> lock(emr_mutex);
     return items;
   }
-  void removeItem(const std::string name)
-  {
-    //deletes the marker 
-    std::cout << "\033[0;35m" <<  "DELETES THE MARKER " << "\033[0m" << std::endl;
-    std::cout <<  items[name]->getName() << std::endl;
-
-    std::shared_ptr<Item> to_be_erased = items[name];
-
-    // Remove the reference to the "item_to_be_erased" from its parent item
-    if(!to_be_erased->isRoot())
-    {
-      auto parent_of_to_be_erased = to_be_erased->getParent();
-      std::shared_ptr<Item> parent_ptr = parent_of_to_be_erased.lock();
-      std::cout <<  "Parent = " << parent_ptr->getName() << std::endl;
-
-      std::cout << "Children size = " << parent_ptr->getChildrenNonConst()->size() << std::endl;
-      auto children_ = parent_ptr->getChildrenNonConst();
-
-
-      // partially working 
-      for (auto it = children_->begin(); it != children_->end(); it++) 
-      {
-        //std::cout <<  "inside iterator " << *it->getName() << std::endl;
-        if (*it == to_be_erased) 
-        {
-          //std::cout <<  "it should remove " << *it->getName() << std::endl;
-            children_->erase(it);
-        }        
-      }
-
-      
-
-      std::remove_if(children_->begin()
-      , children_->end()
-      , [name] (const std::shared_ptr<Item>& item)
-        {
-          std::cout <<  "inside lambda " << item->getName() << std::endl;
-          return (item->getName() == name);
-        });
-
-      std::cout << "Children size = " << parent_ptr->getChildrenNonConst()->size() << std::endl; 
-      // std::cout << "Local children size = " << child2->size() << std::endl; 
-
-
-      // std::cout << 
-      // std::count_if(parent_ptr->getChildrenNonConst().begin()
-      // , parent_ptr->getChildrenNonConst().end()
-      // , [name] (const std::shared_ptr<Item>& item)
-      //   {
-      //     std::cout <<  "inside lambda " << item->getName() << std::endl;
-      //     return (item->getName() == name);
-      //   })
-      // << std::endl;
-
-
-    }
-
-    // Convert the children into root nodes
-    for (auto child : to_be_erased->getChildren())
-    {
-      std::cout << "\033[0;35m" <<  "Convert the children into root nodes " << child->getName() << "\033[0m" << std::endl;
-      std::cout << "\033[0;33;42m =========== Remove Child ============ \033[0m" << std::endl;
-      child->setParent(std::shared_ptr<Item>(nullptr));
-
-    }
-
-    // Deteles the tf 
-    items.erase(name);
-
-
-    std::cout << "\033[0;35m" <<  "----- ///// ===  SIZE === ///// -----" << "\033[0m" << std::endl;
-    std::cout << "\033[0;35m" << items.size()  << "\033[0m" << std::endl;
-    std::vector<std::shared_ptr<emr::Item>> root_items = getRootItems();
-    std::cout << "\033[0;35m" << root_items.size()  << "\033[0m" << std::endl;
-    
-  }
   /**
    * @brief Get the root items of the structure
    * 
@@ -271,7 +192,7 @@ public:
    * @return false if item does not exist
    */
   bool hasItem(const std::string& name);
-
+  void removeItem(const std::string& name);
 };
 
 } // namespace emr

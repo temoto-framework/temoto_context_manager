@@ -200,7 +200,6 @@ public:
   {
     RemoveItem srv_msg;
     srv_msg.request.name = name;
-
     if (!remove_item_client_.call<RemoveItem>(srv_msg)) 
     {
       throw TEMOTO_ERRSTACK("Failed to call the server: '" + srv_name::SERVER_REMOVE_ITEM + "'");
@@ -274,11 +273,6 @@ geometry_msgs::Pose createPose( float p_x
   pose.orientation.z = o_z;
   pose.orientation.w = o_w;
   return pose;
-}
-
-void deleteMarker(const std::string name)
-{
-  
 }
 
 } // namespace

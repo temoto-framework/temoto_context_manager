@@ -33,13 +33,9 @@ int main(int argc, char** argv)
      */
     temoto_context_manager::Items item_containers = cmi_.getEmrVector();
     
-    ROS_INFO("Size of EMR items in visualization markers" );
-    std::cout << item_containers.size() << std::endl;
-    
-
     if (!item_containers.empty())
     {
-      // ROS_INFO("Publishing EMR items as visualization markers");
+      ROS_INFO("Publishing EMR items as visualization markers");
     }
 
     for (auto& item_container : item_containers)

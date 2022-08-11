@@ -106,9 +106,6 @@ bool EmrRosInterface::hasItem(const std::string& name)
 void EmrRosInterface::emrTfCallback(const ros::TimerEvent&)
 {
   std::lock_guard<std::mutex> lock(emr_iface_mutex);
-
-  // std::cout << "\n ---->   emr_ros_interface " << env_model_repository_.getItems().size() << " <---------  " << std::endl;
-
   for (auto const& item_entry : env_model_repository_.getItems())
   {
     // If root node, tf can not be published
@@ -198,9 +195,8 @@ std::vector<temoto_context_manager::ItemContainer> EmrRosInterface::EmrToVector(
   
   for (const auto& item : root_items)
   {
-    // std::cout << "here" << std::endl;
     EmrToVectorHelper(*item, items);
-  }  
+  }
   return items;
 }
 
@@ -246,14 +242,17 @@ void EmrRosInterface::EmrToVectorHelper(const emr::Item& currentItem, std::vecto
     std::shared_ptr<RosPayload<temoto_context_manager::RobotContainer>> rospl = 
       std::dynamic_pointer_cast<RosPayload<temoto_context_manager::RobotContainer>>(currentItem.getPayload());
     ic.serialized_container = temoto_core::serializeROSmsg(rospl->getPayload());
+    ic.maintainer = rospl->getMaintainer();
+    items.push_back(ic);
+
+  }
+  else
+  {
     ROS_ERROR_STREAM("Wrong type of container @ EmrToVectorHelper: " << ic.type);
     return;
   }
 
   std::vector<std::shared_ptr<emr::Item>> children = currentItem.getChildren();
-
-  std::cout << "\033[0;35m" << children.size() << "\033[0m" << std::endl;
-
   for (uint32_t i = 0; i < children.size(); i++)
   {
     EmrToVectorHelper(*children[i], items);
@@ -262,8 +261,6 @@ void EmrRosInterface::EmrToVectorHelper(const emr::Item& currentItem, std::vecto
 }
 void EmrRosInterface::removeItem(const std::string& name)
 {
-  env_model_repository_.removeItem(name);
-
-  
+  env_model_repository_.removeItem(name);  
 }
 } // namespace emr_ros_interface

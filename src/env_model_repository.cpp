@@ -38,8 +38,6 @@ void EnvironmentModelRepository::addItem(const std::string& name, const std::str
     items[name] = std::make_shared<Item>(Item(payload));
     // Add the new item as a child to the parent, creating the child -> parent link in the process
     items[parent]->addChild(items[name]);
-        
-    
   }
 }
 
@@ -47,6 +45,35 @@ void EnvironmentModelRepository::updateItem(const std::string& name, std::shared
 {
   std::lock_guard<std::mutex> lock(emr_mutex);
   items[name]->setPayload(plptr);
+}
+
+void EnvironmentModelRepository::removeItem(const std::string& name)
+{
+  std::shared_ptr<Item> to_be_erased = items[name];
+  // Remove the reference to the "item_to_be_erased" from its parent item
+  if(!to_be_erased->isRoot())
+  {
+    auto parent_of_to_be_erased = to_be_erased->getParent();
+    std::shared_ptr<Item> parent_ptr = parent_of_to_be_erased.lock();
+    auto it = std::remove_if(parent_ptr->getChildrenNonConst()->begin()
+    , parent_ptr->getChildrenNonConst()->end()
+    , [name] (const std::shared_ptr<Item>& item)
+      {
+        return (item->getName() == name);
+      });
+
+    //Actually remove the elements from the children_ vector
+    while (it != parent_ptr->getChildrenNonConst()->end())
+    {
+      it = parent_ptr->getChildrenNonConst()->erase(it);
+    }
+  }
+  // Convert the children into root nodes
+  for (auto child : to_be_erased->getChildren())
+  {      
+    child->setParent(std::shared_ptr<Item>(nullptr));
+  }
+  items.erase(name);
 }
 
 bool EnvironmentModelRepository::hasItem(const std::string& name)
@@ -64,7 +91,7 @@ std::vector<std::shared_ptr<Item>> EnvironmentModelRepository::getRootItems() co
     {
       root_items.push_back(pair.second);
     }
-  }  
+  }
   return root_items;
 }
 /**
@@ -77,24 +104,6 @@ void Item::addChild(std::shared_ptr<Item> child)
   children_.push_back(child);
   child->setParent(shared_from_this());
 }
-
-// void Item::removeChild(std::shared_ptr<Item> item)
-// {
-
-//   // std::cout << "\033[0;33;42m =========== Remove Child ============ \033[0m" << std::endl;
-  
-//   // std::cout << "\033[0;35m" << children_.size() << "\033[0m" << std::endl;
-  
-//   for (auto it = children_.begin(); it != children_.end(); it++) {
-//     if (*it == item) {
-//         children_.erase(it);
-//     }
-    
-//   }
-// }
-
-
-
 
 /**
  * @brief Set parent of item
