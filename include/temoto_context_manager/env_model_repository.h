@@ -66,6 +66,9 @@ private:
 public:
 
   void addChild(std::shared_ptr<Item> child);
+
+  void removeChild(std::shared_ptr<Item> child);
+
   /**
    * @brief Set the Parent pointer
    * 
@@ -87,12 +90,6 @@ public:
   {
     return children_;
   }
-
-  std::vector<std::shared_ptr<Item>>* getChildrenNonConst() 
-  {
-    return &children_;
-  }
-
   /**
    * @brief Get the pointer to Payload
    * 
@@ -157,7 +154,7 @@ public:
    * If the parent name is not empty, make sure the corresponding parent exists.
    * 
    * The first item added to the EMR will be assigned as the root item.
-   * 
+   * void removeItem(const std::string& name);
    * @param parent name of parent item
    * @param name name of item to be added
    * @param entry pointer to payload
@@ -189,7 +186,9 @@ public:
    * @return false if item does not exist
    */
   bool hasItem(const std::string& name);
+
   void removeItem(const std::string& name);
+  
 };
 
 } // namespace emr

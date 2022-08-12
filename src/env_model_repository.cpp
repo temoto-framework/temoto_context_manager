@@ -48,32 +48,17 @@ void EnvironmentModelRepository::updateItem(const std::string& name, std::shared
 }
 
 void EnvironmentModelRepository::removeItem(const std::string& name)
-{
-  std::shared_ptr<Item> to_be_erased = items[name];
-  // Remove the reference to the "item_to_be_erased" from its parent item
-  if(!to_be_erased->isRoot())
+{  
+  if (items.find(name) != items.end())
   {
-    auto parent_of_to_be_erased = to_be_erased->getParent();
-    std::shared_ptr<Item> parent_ptr = parent_of_to_be_erased.lock();
-    auto it = std::remove_if(parent_ptr->getChildrenNonConst()->begin()
-    , parent_ptr->getChildrenNonConst()->end()
-    , [name] (const std::shared_ptr<Item>& item)
-      {
-        return (item->getName() == name);
-      });
-
-    //Actually remove the elements from the children_ vector
-    while (it != parent_ptr->getChildrenNonConst()->end())
+    std::cout << "Found element" << std::endl;
+    if (!items[name]->isRoot())
     {
-      it = parent_ptr->getChildrenNonConst()->erase(it);
+      std::shared_ptr<Item> parent_ptr = items[name]->getParent().lock();
+      parent_ptr->removeChild(items[name]);      
     }
-  }
-  // Convert the children into root nodes
-  for (auto child : to_be_erased->getChildren())
-  {      
-    child->setParent(std::shared_ptr<Item>(nullptr));
-  }
-  items.erase(name);
+    items.erase(name);
+  }  
 }
 
 bool EnvironmentModelRepository::hasItem(const std::string& name)
@@ -103,6 +88,14 @@ void Item::addChild(std::shared_ptr<Item> child)
 {
   children_.push_back(child);
   child->setParent(shared_from_this());
+}
+void Item::removeChild(std::shared_ptr<Item> child)
+{  
+  auto it = std::find(children_.begin(), children_.end(), child);
+  if (it != children_.end())
+  {
+    children_.erase(it);
+  }
 }
 /**
  * @brief Set parent of item
