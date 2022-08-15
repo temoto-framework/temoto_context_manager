@@ -47,6 +47,20 @@ void EnvironmentModelRepository::updateItem(const std::string& name, std::shared
   items[name]->setPayload(plptr);
 }
 
+void EnvironmentModelRepository::removeItem(const std::string& name)
+{  
+  if (items.find(name) != items.end())
+  {
+    std::cout << "Found element" << std::endl;
+    if (!items[name]->isRoot())
+    {
+      std::shared_ptr<Item> parent_ptr = items[name]->getParent().lock();
+      parent_ptr->removeChild(name);
+    }
+    items.erase(name);
+  }  
+}
+
 bool EnvironmentModelRepository::hasItem(const std::string& name)
 {
   std::lock_guard<std::mutex> lock(emr_mutex);
@@ -74,6 +88,17 @@ void Item::addChild(std::shared_ptr<Item> child)
 {
   children_.push_back(child);
   child->setParent(shared_from_this());
+}
+void Item::removeChild(const std::string& name)
+{  
+  auto it = std::find_if(children_.begin(), children_.end(), [name] (const std::shared_ptr<Item>& item)
+      {
+        return (item->getName() == name);
+      });
+  if (it != children_.end())
+  {
+    children_.erase(it);
+  }
 }
 /**
  * @brief Set parent of item

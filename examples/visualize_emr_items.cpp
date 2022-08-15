@@ -31,8 +31,7 @@ int main(int argc, char** argv)
     /*
      * Get the vector of ItemContainers and parse the ItemContainer to specific containers
      */
-    temoto_context_manager::Items item_containers = cmi_.getEmrVector();
-
+    temoto_context_manager::Items item_containers = cmi_.getEmrVector();    
     if (!item_containers.empty())
     {
       ROS_INFO("Publishing EMR items as visualization markers");
@@ -60,6 +59,7 @@ int main(int argc, char** argv)
       viz_marker_msg.header = oc.pose.header;
       viz_marker_msg.header.stamp = ros::Time::now();
       viz_marker_msg.pose = oc.pose.pose;
+      viz_marker_msg.lifetime = ros::Duration(3.0);
       viz_marker_publisher_.publish(viz_marker_msg);
     }
     

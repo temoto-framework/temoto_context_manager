@@ -66,6 +66,9 @@ private:
 public:
 
   void addChild(std::shared_ptr<Item> child);
+
+  void removeChild(const std::string& name);
+
   /**
    * @brief Set the Parent pointer
    * 
@@ -105,7 +108,7 @@ public:
    * to the parent is expired.
    * 
    * @return true 
-   * @return false 
+   * @return false
    */
   bool isRoot() {return parent_.expired();}
   /**
@@ -133,10 +136,6 @@ public:
     std::lock_guard<std::mutex> lock(emr_mutex);
     return items;
   }
-  void removeItem(const std::string name)
-  {
-    items.erase(name);
-  }
   /**
    * @brief Get the root items of the structure
    * 
@@ -155,7 +154,7 @@ public:
    * If the parent name is not empty, make sure the corresponding parent exists.
    * 
    * The first item added to the EMR will be assigned as the root item.
-   * 
+   * void removeItem(const std::string& name);
    * @param parent name of parent item
    * @param name name of item to be added
    * @param entry pointer to payload
@@ -188,6 +187,8 @@ public:
    */
   bool hasItem(const std::string& name);
 
+  void removeItem(const std::string& name);
+  
 };
 
 } // namespace emr

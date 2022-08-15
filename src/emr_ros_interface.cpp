@@ -191,7 +191,7 @@ std::vector<temoto_context_manager::ItemContainer> EmrRosInterface::EmrToVector(
 {
   std::lock_guard<std::mutex> lock(emr_iface_mutex);
   std::vector<temoto_context_manager::ItemContainer> items;
-  std::vector<std::shared_ptr<emr::Item>> root_items = env_model_repository_.getRootItems();
+  std::vector<std::shared_ptr<emr::Item>> root_items = env_model_repository_.getRootItems();  
   for (const auto& item : root_items)
   {
     EmrToVectorHelper(*item, items);
@@ -260,6 +260,6 @@ void EmrRosInterface::EmrToVectorHelper(const emr::Item& currentItem, std::vecto
 }
 void EmrRosInterface::removeItem(const std::string& name)
 {
-  env_model_repository_.removeItem(name);
+  env_model_repository_.removeItem(name);  
 }
 } // namespace emr_ros_interface

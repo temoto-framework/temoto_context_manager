@@ -227,47 +227,47 @@ public:
                           const std::string& maintainer, 
                           const bool update_time)
   {
-  RosPayload<Container> rospl = RosPayload<Container>(container);
-  rospl.setType(container_type);
-  std::string name = temoto_core::common::toSnakeCase(container.name);
-  std::string parent = temoto_core::common::toSnakeCase(container.parent);
+    RosPayload<Container> rospl = RosPayload<Container>(container);
+    rospl.setType(container_type);
+    std::string name = temoto_core::common::toSnakeCase(container.name);
+    std::string parent = temoto_core::common::toSnakeCase(container.parent);
 
-  // Check for empty name field
-  // Move these to the context manager interface maybe? TBD
-  if (name == "") 
-  {
-    ROS_ERROR_STREAM("Empty string not allowed as EMR item name!");
-    return false;
-  }
-  // Check if the parent exists
-  if ((!parent.empty()) && (!env_model_repository_.hasItem(parent))) 
-  {
-    ROS_ERROR_STREAM("No parent with name " << parent << " found in EMR!");
-    return false;
-  }
-  
-  // Check if the object has to be added or updated
-  if (!env_model_repository_.hasItem(name))
-  {
-    // Add the new item
-    // TODO: resolve tf_prefixes, if type == component or robot, prepend maintainer
-    rospl.setMaintainer(maintainer);
-    std::shared_ptr<RosPayload<Container>> plptr = std::make_shared<RosPayload<Container>>(rospl);
-    env_model_repository_.addItem(name, parent, plptr);
-  }
-  else
-  {
-    if (rospl.getTime() > getRosPayloadPtr<Container>(name)->getTime()) 
+    // Check for empty name field
+    // Move these to the context manager interface maybe? TBD
+    if (name == "") 
     {
-      // Update the item information
-      if (update_time) rospl.updateTime();
-      std::shared_ptr<RosPayload<Container>> plptr = std::make_shared<RosPayload<Container>>(rospl);
-      env_model_repository_.updateItem(name, plptr);
-      ROS_INFO_STREAM("Updated item: " << name);
+      ROS_ERROR_STREAM("Empty string not allowed as EMR item name!");
+      return false;
     }
+    // Check if the parent exists
+    if ((!parent.empty()) && (!env_model_repository_.hasItem(parent))) 
+    {
+      ROS_ERROR_STREAM("No parent with name " << parent << " found in EMR!");
+      return false;
+    }
+    
+    // Check if the object has to be added or updated
+    if (!env_model_repository_.hasItem(name))
+    {
+      // Add the new item
+      // TODO: resolve tf_prefixes, if type == component or robot, prepend maintainer
+      rospl.setMaintainer(maintainer);
+      std::shared_ptr<RosPayload<Container>> plptr = std::make_shared<RosPayload<Container>>(rospl);
+      env_model_repository_.addItem(name, parent, plptr);
+    }
+    else
+    {
+      if (rospl.getTime() > getRosPayloadPtr<Container>(name)->getTime()) 
+      {
+        // Update the item information
+        if (update_time) rospl.updateTime();
+        std::shared_ptr<RosPayload<Container>> plptr = std::make_shared<RosPayload<Container>>(rospl);
+        env_model_repository_.updateItem(name, plptr);
+        ROS_INFO_STREAM("Updated item: " << name);
+      }
+    }
+    return true;
   }
-  return true;
-}
 
   /**
    * @brief Recursive helper function to save EMR state
@@ -285,34 +285,34 @@ public:
    * @param newPose 
    */
   
-template <class Container>
-Container getNearestParentOfType(const std::string& name)
-{
-  std::shared_ptr<emr::Item> itemptr = env_model_repository_.getItemByName(temoto_core::common::toSnakeCase(name));
-  if (itemptr->isRoot()) 
-    ROS_ERROR_STREAM("ROOT ITEM HAS NO PARENTS.");
-  std::string nearest = 
-          getNearestParentHelper(parseContainerType<Container>(), itemptr->getParent().lock());
-  return getContainer<Container>(nearest);
-}
-
-std::string getNearestParentHelper(const std::string& type, const std::shared_ptr<emr::Item>& itemptr)
-{
-  if (itemptr->getPayload()->getType() == type) 
+  template <class Container>
+  Container getNearestParentOfType(const std::string& name)
   {
-    return itemptr->getPayload()->getName();
-  }
-  else
-  {
-    // Check if there is a parent
+    std::shared_ptr<emr::Item> itemptr = env_model_repository_.getItemByName(temoto_core::common::toSnakeCase(name));
     if (itemptr->isRoot()) 
-    {
-      ROS_ERROR_STREAM("No parent item of type" << type << "found in EMR!");
-      return "";
-    }
-    return getNearestParentHelper(type, itemptr->getParent().lock());
+      ROS_ERROR_STREAM("ROOT ITEM HAS NO PARENTS.");
+    std::string nearest = 
+            getNearestParentHelper(parseContainerType<Container>(), itemptr->getParent().lock());
+    return getContainer<Container>(nearest);
   }
-}
+
+  std::string getNearestParentHelper(const std::string& type, const std::shared_ptr<emr::Item>& itemptr)
+  {
+    if (itemptr->getPayload()->getType() == type) 
+    {
+      return itemptr->getPayload()->getName();
+    }
+    else
+    {
+      // Check if there is a parent
+      if (itemptr->isRoot()) 
+      {
+        ROS_ERROR_STREAM("No parent item of type" << type << "found in EMR!");
+        return "";
+      }
+      return getNearestParentHelper(type, itemptr->getParent().lock());
+    }
+  }
 
 private:
   emr::EnvironmentModelRepository& env_model_repository_;
@@ -326,27 +326,27 @@ private:
   template <class Container>
   void publishContainerTf(const Container& container);
   template <class Container>
-std::string parseContainerType()
-{
-  if (std::is_same<Container, temoto_context_manager::ObjectContainer>::value) 
+  std::string parseContainerType()
   {
-    return emr_containers::OBJECT;
+    if (std::is_same<Container, temoto_context_manager::ObjectContainer>::value) 
+    {
+      return emr_containers::OBJECT;
+    }
+    else if (std::is_same<Container, temoto_context_manager::MapContainer>::value) 
+    {
+      return emr_containers::MAP;
+    }
+    else if (std::is_same<Container, temoto_context_manager::ComponentContainer>::value) 
+    {
+      return emr_containers::COMPONENT;
+    }
+    else if (std::is_same<Container, temoto_context_manager::RobotContainer>::value) 
+    {
+      return emr_containers::ROBOT;
+    }
+    ROS_ERROR_STREAM("UNRECOGNIZED TYPE");
+    return "FAULTY_TYPE";
   }
-  else if (std::is_same<Container, temoto_context_manager::MapContainer>::value) 
-  {
-    return emr_containers::MAP;
-  }
-  else if (std::is_same<Container, temoto_context_manager::ComponentContainer>::value) 
-  {
-    return emr_containers::COMPONENT;
-  }
-  else if (std::is_same<Container, temoto_context_manager::RobotContainer>::value) 
-  {
-    return emr_containers::ROBOT;
-  }
-  ROS_ERROR_STREAM("UNRECOGNIZED TYPE");
-  return "FAULTY_TYPE";
-}
 
   /**
    * @brief Moves up the tree, returning the closest container of type Container

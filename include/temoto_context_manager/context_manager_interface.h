@@ -38,6 +38,7 @@ public:
     update_EMR_client_ = nh_.serviceClient<UpdateEmr>(srv_name::SERVER_UPDATE_EMR);
     get_emr_item_client_ = nh_.serviceClient<GetEMRItem>(srv_name::SERVER_GET_EMR_ITEM);
     get_emr_vector_client_ = nh_.serviceClient<GetEMRVector>(srv_name::SERVER_GET_EMR_VECTOR);
+    remove_item_client_ = nh_.serviceClient<RemoveItem>(srv_name::SERVER_REMOVE_ITEM);
   }
 
   std::vector<ItemContainer> getEmrVector()
@@ -195,6 +196,17 @@ public:
     }
   }
 
+  void removeItem(const std::string& name)
+  {
+    RemoveItem srv_msg;
+    srv_msg.request.name = name;
+    if (!remove_item_client_.call<RemoveItem>(srv_msg)) 
+    {
+      throw TEMOTO_ERRSTACK("Failed to call the server: '" + srv_name::SERVER_REMOVE_ITEM + "'");
+    }    
+    TEMOTO_INFO_STREAM_("Remove item: " << name << std::endl);
+  }
+
   ~ContextManagerInterface(){}
 
 private:
@@ -204,6 +216,7 @@ private:
   ros::ServiceClient update_EMR_client_;
   ros::ServiceClient get_emr_item_client_;
   ros::ServiceClient get_emr_vector_client_;
+  ros::ServiceClient remove_item_client_;
 
 };
 

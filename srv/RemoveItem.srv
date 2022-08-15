@@ -1,0 +1,6 @@
+# Name of item we need to remove
+string name
+
+---
+
+bool success
