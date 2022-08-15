@@ -55,7 +55,7 @@ void EnvironmentModelRepository::removeItem(const std::string& name)
     if (!items[name]->isRoot())
     {
       std::shared_ptr<Item> parent_ptr = items[name]->getParent().lock();
-      parent_ptr->removeChild(items[name]);      
+      parent_ptr->removeChild(name);
     }
     items.erase(name);
   }  
@@ -89,9 +89,12 @@ void Item::addChild(std::shared_ptr<Item> child)
   children_.push_back(child);
   child->setParent(shared_from_this());
 }
-void Item::removeChild(std::shared_ptr<Item> child)
+void Item::removeChild(const std::string& name)
 {  
-  auto it = std::find(children_.begin(), children_.end(), child);
+  auto it = std::find_if(children_.begin(), children_.end(), [name] (const std::shared_ptr<Item>& item)
+      {
+        return (item->getName() == name);
+      });
   if (it != children_.end())
   {
     children_.erase(it);

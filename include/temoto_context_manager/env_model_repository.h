@@ -67,7 +67,7 @@ public:
 
   void addChild(std::shared_ptr<Item> child);
 
-  void removeChild(std::shared_ptr<Item> child);
+  void removeChild(const std::string& name);
 
   /**
    * @brief Set the Parent pointer
